@@ -1,8 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: {
-    fileTracingRoot: __dirname
-  },
+  output: 'standalone',
   experimental: {
     optimizeCss: true,
     scrollRestoration: true,
