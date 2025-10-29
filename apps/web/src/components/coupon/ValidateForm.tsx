@@ -7,13 +7,17 @@ import { ActionSheet, ActionSheetButton, ActionSheetButtonGroup } from '@/compon
 
 interface ValidateFormProps {
   couponCode?: string;
-  onScan: (result: string) => void;
+  onScan: (result: string, qrImageUrl: string) => void;
+  qrImageUrl?: string | null;
+  isValidated?: boolean;
+  onConfirm?: () => void;
+  isConfirming?: boolean;
 }
 
-export function ValidateForm({ couponCode, onScan }: ValidateFormProps) {
+export function ValidateForm({ couponCode, onScan, qrImageUrl, isValidated, onConfirm, isConfirming }: ValidateFormProps) {
   const scannerRef = useRef<{ scanFile: (file: File) => void } | null>(null);
   const [isScanning, setIsScanning] = useState(false);
-  const [scannedImageUrl, setScannedImageUrl] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleFileSelect = () => {
     const input = document.createElement('input');
@@ -23,18 +27,15 @@ export function ValidateForm({ couponCode, onScan }: ValidateFormProps) {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file && scannerRef.current?.scanFile) {
         setIsScanning(true);
-        setScannedImageUrl(null);
-        
-        // 파일을 이미지 URL로 변환
-        const imageUrl = URL.createObjectURL(file);
+        setErrorMessage(null);
         
         try {
           await scannerRef.current.scanFile(file);
-          // 스캔 성공 시 이미지 표시
-          setScannedImageUrl(imageUrl);
+          // 스캔 성공 시 - QRScanner에서 onScan을 통해 이미지가 설정됨
+          setErrorMessage(null);
         } catch (error) {
-          // 스캔 실패 시 URL 해제
-          URL.revokeObjectURL(imageUrl);
+          // 스캔 실패 시 에러 메시지 표시
+          setErrorMessage(error instanceof Error ? error.message : 'QR 코드를 읽을 수 없습니다.');
         } finally {
           setIsScanning(false);
         }
@@ -74,14 +75,23 @@ export function ValidateForm({ couponCode, onScan }: ValidateFormProps) {
         <div className="mt-8 aspect-square w-full max-w-[280px] mx-auto flex items-center justify-center border-2 border-gray-300 rounded-[14px] bg-gray-50">
           {isScanning ? (
             // 스캔 중 메시지
-            <div className="text-center">
+            <div className="text-center px-4">
               <div className="w-12 h-12 border-4 border-gray-200 border-t-gray-900 rounded-full animate-spin mx-auto mb-3"></div>
               <p className="text-gray-600 text-[15px]">유효한 코드인지 확인중...</p>
             </div>
-          ) : scannedImageUrl ? (
+          ) : errorMessage ? (
+            // 에러 메시지 표시
+            <div className="text-center px-4">
+              <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                <span className="text-red-500 text-2xl">✕</span>
+              </div>
+              <p className="text-red-600 text-[15px] font-medium mb-2">스캔 실패</p>
+              <p className="text-gray-600 text-[13px]">{errorMessage}</p>
+            </div>
+          ) : qrImageUrl ? (
             // 스캔된 QR 이미지 표시
             <img 
-              src={scannedImageUrl} 
+              src={qrImageUrl} 
               alt="스캔된 QR 코드" 
               className="w-full h-full object-contain p-4"
             />
@@ -94,12 +104,23 @@ export function ValidateForm({ couponCode, onScan }: ValidateFormProps) {
         <QRScanner onScanSuccess={onScan} ref={scannerRef} />
       </div>
 
-      <button
-        className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-[320px] h-[56px] bg-gray-900 text-white text-[17px] font-semibold rounded-[16px] shadow-lg active:bg-gray-800"
-        onClick={handleFileSelect}
-      >
-        QR코드 촬영하기
-      </button>
+      {/* 검증 완료 후 직원 확인 버튼 또는 QR 촬영 버튼 */}
+      {isValidated ? (
+        <button
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-[320px] h-[56px] bg-gray-900 text-white text-[17px] font-semibold rounded-[16px] shadow-lg active:bg-gray-800 disabled:bg-gray-400"
+          onClick={onConfirm}
+          disabled={isConfirming}
+        >
+          {isConfirming ? '처리 중...' : '직원확인'}
+        </button>
+      ) : (
+        <button
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-[320px] h-[56px] bg-gray-900 text-white text-[17px] font-semibold rounded-[16px] shadow-lg active:bg-gray-800"
+          onClick={handleFileSelect}
+        >
+          QR코드 촬영하기
+        </button>
+      )}
     </div>
   );
 }

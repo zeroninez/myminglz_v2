@@ -14,7 +14,6 @@
     "@emotion/styled": "^11.14.1",
     "@myminglz/core": "workspace:*",
     "@myminglz/shared": "workspace:*",
-    "@myminglz/ui": "workspace:*",
     "@supabase/supabase-js": "^2.50.0",
     "framer-motion": "^6.5.1",
     "jsqr": "^1.4.0",

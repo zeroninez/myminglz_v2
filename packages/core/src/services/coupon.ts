@@ -17,7 +17,19 @@ export class CouponService {
   static initialize(supabaseUrl: string, supabaseKey: string): void {
     if (!this.supabase) {
       console.log('Creating new Supabase client with URL:', supabaseUrl);
-      this.supabase = createClient(supabaseUrl, supabaseKey);
+      this.supabase = createClient(supabaseUrl, supabaseKey, {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+        },
+        global: {
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+          },
+        },
+      });
+      console.log('Supabase client initialized successfully');
     }
   }
 
@@ -76,17 +88,26 @@ export class CouponService {
   static async getStoreBySlug(slug: string): Promise<Store | null> {
     try {
       const supabase = this.checkInitialized();
+      console.log('Searching for store with slug:', slug);
+      
       const { data, error } = await supabase
         .from('stores')
-        .select(`
-          *,
-          location:locations(*)
-        `)
+        .select('*')
         .eq('slug', slug)
         .eq('is_active', true)
         .single();
 
-      if (error || !data) return null;
+      if (error) {
+        console.error('Store query error:', error);
+        return null;
+      }
+      
+      if (!data) {
+        console.log('No store found with slug:', slug);
+        return null;
+      }
+
+      console.log('Store found:', data);
       return data;
     } catch (error) {
       console.error('가게 조회 오류:', error);
@@ -264,16 +285,13 @@ export class CouponService {
       const supabase = this.checkInitialized();
       const { data, error } = await supabase
         .from('coupons')
-        .select(`
-          *,
-          location:locations(*),
-          validated_by_store:stores!validated_by_store_id(*)
-        `)
+        .select('*')
         .eq('code', upperCode)
         .eq('location_id', store.location_id)
         .single();
 
       if (error || !data) {
+        console.error('Coupon validation error:', error);
         const result: ValidateCodeResult = {
           success: true,
           isValid: false,
@@ -282,13 +300,40 @@ export class CouponService {
         return result;
       }
 
+      // location 정보 별도 조회
+      const { data: location, error: locationError } = await supabase
+        .from('locations')
+        .select('*')
+        .eq('id', data.location_id)
+        .single();
+
+      if (locationError || !location) {
+        console.error('Location query error:', locationError);
+        const result: ValidateCodeResult = {
+          success: true,
+          isValid: false,
+          message: '장소 정보를 찾을 수 없습니다.',
+        };
+        return result;
+      }
+
       if (data.is_used) {
-        const usedAtStore = data.validated_by_store?.name || '다른 곳';
+        let usedAtStore = '다른 곳';
+        if (data.validated_by_store_id) {
+          const { data: validatedStore } = await supabase
+            .from('stores')
+            .select('name')
+            .eq('id', data.validated_by_store_id)
+            .single();
+          if (validatedStore) {
+            usedAtStore = validatedStore.name;
+          }
+        }
         const result: ValidateCodeResult = {
           success: true,
           isValid: true,
           isUsed: true,
-          location: data.location,
+          location,
           store,
           message: `이미 ${usedAtStore}에서 사용된 코드입니다.`,
         };
@@ -296,7 +341,6 @@ export class CouponService {
       }
 
       // 쿠폰 만료일 체크
-      const location = data.location;
       if (location.coupon_expiry_days !== null && location.coupon_expiry_days !== undefined) {
         const now = new Date();
         const createdAt = new Date(data.created_at);
@@ -320,9 +364,9 @@ export class CouponService {
         success: true,
         isValid: true,
         isUsed: false,
-        location: data.location,
+        location,
         store,
-        message: `✅ ${data.location.name} 방문이 확인되었습니다!`,
+        message: `✅ ${location.name} 방문이 확인되었습니다!`,
       };
       return result;
     } catch (error) {
@@ -361,19 +405,21 @@ export class CouponService {
           validated_by_store_id: store.id,
         })
         .eq('code', upperCode)
-        .select(`
-          *,
-          location:locations(*),
-          store:stores(*),
-          validated_by_store:stores!validated_by_store_id(*)
-        `)
+        .select('*')
         .single();
 
       if (error) throw error;
 
+      // 업데이트된 쿠폰 데이터에 location 정보 추가
+      const couponWithDetails = {
+        ...data,
+        location: validationResult.location,
+        store: validationResult.store,
+      };
+
       const result: SaveCodeResult = {
         success: true,
-        coupon: data as CouponWithDetails,
+        coupon: couponWithDetails as CouponWithDetails,
         message: `✅ ${validationResult.location!.name} 방문 쿠폰이 ${store.name}에서 사용 완료되었습니다!`,
       };
       return result;

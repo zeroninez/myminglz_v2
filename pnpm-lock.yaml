@@ -66,9 +66,6 @@ importers:
       '@myminglz/shared':
         specifier: workspace:*
         version: link:../../packages/shared
-      '@myminglz/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
       '@supabase/supabase-js':
         specifier: ^2.50.0
         version: 2.58.0
@@ -124,9 +121,6 @@ importers:
       '@myminglz/shared':
         specifier: workspace:*
         version: link:../../packages/shared
-      '@myminglz/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
       '@supabase/supabase-js':
         specifier: ^2.50.0
         version: 2.58.0
@@ -191,6 +185,9 @@ importers:
       html5-qrcode:
         specifier: ^2.3.8
         version: 2.3.8
+      jsqr:
+        specifier: ^1.4.0
+        version: 1.4.0
       next:
         specifier: 14.1.0
         version: 14.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -303,43 +300,6 @@ importers:
         version: 5.0.10
       typescript:
         specifier: ^5.9.2
-        version: 5.9.2
-
-  packages/ui:
-    dependencies:
-      '@myminglz/shared':
-        specifier: workspace:*
-        version: link:../shared
-      class-variance-authority:
-        specifier: ^0.7.0
-        version: 0.7.1
-      clsx:
-        specifier: ^2.0.0
-        version: 2.1.1
-      react:
-        specifier: ^18.2.0
-        version: 18.3.1
-      tailwind-merge:
-        specifier: ^2.0.0
-        version: 2.6.0
-    devDependencies:
-      '@types/react':
-        specifier: ^18.2.0
-        version: 18.3.24
-      autoprefixer:
-        specifier: ^10.0.0
-        version: 10.4.21(postcss@8.5.6)
-      postcss:
-        specifier: ^8.0.0
-        version: 8.5.6
-      tailwindcss:
-        specifier: ^3.0.0
-        version: 3.4.17
-      tsup:
-        specifier: ^8.5.0
-        version: 8.5.0(jiti@2.6.1)(postcss@8.5.6)(typescript@5.9.2)(yaml@2.8.1)
-      typescript:
-        specifier: ^5.0.0
         version: 5.9.2
 
 packages:
@@ -1983,9 +1943,6 @@ packages:
     resolution: {integrity: sha512-Qgzu8kfBvo+cA4962jnP1KkS6Dop5NS6g7R5LFYJr4b8Ub94PPQXUksCw9PvXoeXPRRddRNC5C1JQUR2SMGtnA==}
     engines: {node: '>= 14.16.0'}
 
-  class-variance-authority@0.7.1:
-    resolution: {integrity: sha512-Ka+9Trutv7G8M6WT6SeiRWz792K5qEqIGEGzXKhAE6xOWAY6pPH8U+9IY3oCMv6kqTmLsv7Xh/2w2RigkePMsg==}
-
   client-only@0.0.1:
     resolution: {integrity: sha512-IV3Ou0jSMzZrd3pZ48nLkT9DA7Ag1pnPzaiQhpW7c3RbcqqzvzzVu+L8gfqMp/8IM2MQtSiqaCxrrcfu8I8rMA==}
 
@@ -3464,9 +3421,6 @@ packages:
 
   tabbable@6.3.0:
     resolution: {integrity: sha512-EIHvdY5bPLuWForiR/AN2Bxngzpuwn1is4asboytXtpTgsArc+WmSJKVLlhdh71u7jFcryDqB2A8lQvj78MkyQ==}
-
-  tailwind-merge@2.6.0:
-    resolution: {integrity: sha512-P+Vu1qXfzediirmHOC3xKGAYeZtPcV9g76X+xg2FD4tYgR71ewMA35Y3sCz3zhiN/dwefRpJX0yBcgwi1fXNQA==}
 
   tailwindcss@3.4.17:
     resolution: {integrity: sha512-w33E2aCvSDP0tW9RZuNXadXlkHXqFzSkQew/aIa2i/Sj8fThxwovwlXHSPXTbAHwEIhBFXAedUhP2tueAKP8Og==}
@@ -5650,10 +5604,6 @@ snapshots:
     dependencies:
       readdirp: 4.1.2
 
-  class-variance-authority@0.7.1:
-    dependencies:
-      clsx: 2.1.1
-
   client-only@0.0.1: {}
 
   cliui@6.0.0:
@@ -7400,8 +7350,6 @@ snapshots:
   supports-preserve-symlinks-flag@1.0.0: {}
 
   tabbable@6.3.0: {}
-
-  tailwind-merge@2.6.0: {}
 
   tailwindcss@3.4.17:
     dependencies:
