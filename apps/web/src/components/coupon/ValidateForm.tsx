@@ -11,16 +11,33 @@ interface ValidateFormProps {
 }
 
 export function ValidateForm({ couponCode, onScan }: ValidateFormProps) {
-  const scannerRef = useRef<{ startScanner: () => void } | null>(null);
+  const scannerRef = useRef<{ scanFile: (file: File) => void } | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [scannedImageUrl, setScannedImageUrl] = useState<string | null>(null);
 
   const handleFileSelect = () => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
-    input.onchange = (e) => {
+    input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
-      if (file && scannerRef.current?.startScanner) {
-        scannerRef.current.startScanner();
+      if (file && scannerRef.current?.scanFile) {
+        setIsScanning(true);
+        setScannedImageUrl(null);
+        
+        // 파일을 이미지 URL로 변환
+        const imageUrl = URL.createObjectURL(file);
+        
+        try {
+          await scannerRef.current.scanFile(file);
+          // 스캔 성공 시 이미지 표시
+          setScannedImageUrl(imageUrl);
+        } catch (error) {
+          // 스캔 실패 시 URL 해제
+          URL.revokeObjectURL(imageUrl);
+        } finally {
+          setIsScanning(false);
+        }
       }
     };
     input.click();
@@ -53,7 +70,26 @@ export function ValidateForm({ couponCode, onScan }: ValidateFormProps) {
           </div>
         </div>
 
-        <QRPlaceholder className="mt-8" />
+        {/* QR 코드 표시 영역 */}
+        <div className="mt-8 aspect-square w-full max-w-[280px] mx-auto flex items-center justify-center border-2 border-gray-300 rounded-[14px] bg-gray-50">
+          {isScanning ? (
+            // 스캔 중 메시지
+            <div className="text-center">
+              <div className="w-12 h-12 border-4 border-gray-200 border-t-gray-900 rounded-full animate-spin mx-auto mb-3"></div>
+              <p className="text-gray-600 text-[15px]">유효한 코드인지 확인중...</p>
+            </div>
+          ) : scannedImageUrl ? (
+            // 스캔된 QR 이미지 표시
+            <img 
+              src={scannedImageUrl} 
+              alt="스캔된 QR 코드" 
+              className="w-full h-full object-contain p-4"
+            />
+          ) : (
+            // 기본 플레이스홀더
+            <QRPlaceholder className="" />
+          )}
+        </div>
 
         <QRScanner onScanSuccess={onScan} ref={scannerRef} />
       </div>
