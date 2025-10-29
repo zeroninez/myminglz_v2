@@ -1,7 +1,9 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { QRScanner } from '@/components/coupon/QRScanner';
+import { QRPlaceholder } from '@/components/ui/coupon/QRPlaceholder';
+import { ActionSheet, ActionSheetButton, ActionSheetButtonGroup } from '@/components/ui/ActionSheet';
 
 interface ValidateFormProps {
   couponCode?: string;
@@ -10,68 +12,97 @@ interface ValidateFormProps {
 
 export function ValidateForm({ couponCode, onScan }: ValidateFormProps) {
   const scannerRef = useRef<{ startScanner: () => void } | null>(null);
+  const [showActionSheet, setShowActionSheet] = useState(false);
   return (
-    <div className="flex flex-col items-center min-h-screen bg-primary-background pt-16">
-      <div className="flex flex-col items-center mb-3">
-        <h1 className="text-white text-[28px] font-bold leading-tight">
-          매장 내 비치된
-        </h1>
-        <h1 className="text-white text-[28px] font-bold leading-tight">
-          QR코드를
-        </h1>
-        <h1 className="text-white text-[28px] font-bold leading-tight">
+    <div className="min-h-screen bg-white">
+      <div className="px-5 pt-16">
+        <h1 className="text-gray-900 text-[32px] font-bold leading-[1.3] mb-3">
+          매장 내 비치된<br />
+          QR코드를<br />
           촬영해주세요
         </h1>
-      </div>
 
-      <p className="text-white/80 text-sm mb-8">
-        QR코드 위치는 점원에게 문의해주세요
-      </p>
+        <p className="text-gray-600 text-[15px] mb-8">
+          QR코드 위치는 점원에게 문의해주세요
+        </p>
 
-      <div className="w-[90%] max-w-[320px] bg-white rounded-[20px] p-5">
-        <div className="flex flex-col items-center">
-          <h2 className="text-[17px] font-bold mb-4">
+        <div className="bg-gray-50 border-2 border-gray-200 rounded-[20px] p-5">
+          <h2 className="text-[17px] font-bold text-gray-900 mb-4">
             주의사항
           </h2>
-          <div className="flex items-start space-x-2 w-full mb-6">
-            <span className="text-gray-400 mt-0.5">①</span>
-            <p className="text-[13px] text-gray-600 leading-relaxed">
+          <div className="flex items-start gap-2">
+            <div className="flex-shrink-0 w-5 h-5 rounded-full border-2 border-gray-400 flex items-center justify-center">
+              <span className="text-gray-400 text-xs font-bold">!</span>
+            </div>
+            <p className="text-[15px] text-gray-600 leading-[1.5]">
               스캔이 안된 촬영 후 업로드까지 완료해주세요
             </p>
           </div>
-          <div className="w-full aspect-square max-w-[200px] flex items-center justify-center border-2 border-dashed border-gray-200 rounded-lg mb-6">
-            <div className="w-[60px] h-[60px]">
-              <svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <g clipPath="url(#clip0)">
-                  <path d="M58.9999 73.333H69.9999C71.9448 73.333 73.8101 72.5604 75.1854 71.1851C76.5606 69.8099 77.3333 67.9446 77.3333 65.9997V54.9997C77.3333 54.0272 77.7196 53.0946 78.4072 52.407C79.0948 51.7193 80.0275 51.333 80.9999 51.333C81.9724 51.333 82.905 51.7193 83.5927 52.407C84.2803 53.0946 84.6666 54.0272 84.6666 54.9997V65.9997C84.6666 69.8895 83.1214 73.62 80.3708 76.3706C77.6203 79.1211 73.8898 80.6663 69.9999 80.6663H25.9999C22.1101 80.6663 18.3796 79.1211 15.629 76.3706C12.8785 73.62 11.3333 69.8895 11.3333 65.9997V54.9997C11.3333 54.0272 11.7196 53.0946 12.4072 52.407C13.0948 51.7193 14.0275 51.333 14.9999 51.333C15.9724 51.333 16.905 51.7193 17.5926 52.407C18.2803 53.0946 18.6666 54.0272 18.6666 54.9997V65.9997C18.6666 67.9446 19.4392 69.8099 20.8145 71.1851C22.1897 72.5604 24.055 73.333 25.9999 73.333H36.9999C37.9724 73.333 38.905 73.7193 39.5926 74.407C40.2803 75.0946 40.6666 76.0272 40.6666 76.9997C40.6666 77.9721 40.2803 78.9048 39.5926 79.5924C38.905 80.28 37.9724 80.6663 36.9999 80.6663H58.9999C58.0275 80.6663 57.0948 80.28 56.4072 79.5924C55.7196 78.9048 55.3333 77.9721 55.3333 76.9997C55.3333 76.0272 55.7196 75.0946 56.4072 74.407C57.0948 73.7193 58.0275 73.333 58.9999 73.333ZM18.6666 32.9997C18.6666 33.9721 18.2803 34.9048 17.5926 35.5924C16.905 36.28 15.9724 36.6663 14.9999 36.6663C14.0275 36.6663 13.0948 36.28 12.4072 35.5924C11.7196 34.9048 11.3333 33.9721 11.3333 32.9997V21.9997C11.3333 18.1098 12.8785 14.3793 15.629 11.6288C18.3796 8.87824 22.1101 7.33301 25.9999 7.33301L36.9999 7.33301C37.9724 7.33301 38.905 7.71932 39.5926 8.40695C40.2803 9.09458 40.6666 10.0272 40.6666 10.9997C40.6666 11.9721 40.2803 12.9048 39.5926 13.5924C38.905 14.28 37.9724 14.6663 36.9999 14.6663H25.9999C24.055 14.6663 22.1897 15.439 20.8145 16.8142C19.4392 18.1895 18.6666 20.0548 18.6666 21.9997V32.9997ZM77.3333 32.9997V21.9997C77.3333 20.0548 76.5606 18.1895 75.1854 16.8142C73.8101 15.439 71.9448 14.6663 69.9999 14.6663H58.9999C58.0275 14.6663 57.0948 14.28 56.4072 13.5924C55.7196 12.9048 55.3333 11.9721 55.3333 10.9997C55.3333 10.0272 55.7196 9.09458 56.4072 8.40695C57.0948 7.71932 58.0275 7.33301 58.9999 7.33301H69.9999C73.8898 7.33301 77.6203 8.87824 80.3708 11.6288C83.1214 14.3793 84.6666 18.1098 84.6666 21.9997V32.9997C84.6666 33.9721 84.2803 34.9048 83.5927 35.5924C82.905 36.28 81.9724 36.6663 80.9999 36.6663C80.0275 36.6663 79.0948 36.28 78.4072 35.5924C77.7196 34.9048 77.3333 33.9721 77.3333 32.9997Z" fill="#D2D2D2"/>
-                  <path d="M7.66675 44H88.3334" stroke="#D2D2D2" strokeWidth="7.33333" strokeLinecap="round"/>
-                </g>
-                <defs>
-                  <clipPath id="clip0">
-                    <rect x="4" width="88" height="88" fill="white"/>
-                  </clipPath>
-                </defs>
-              </svg>
-            </div>
-          </div>
-          <QRScanner onScanSuccess={onScan} ref={scannerRef} />
         </div>
+
+        <QRPlaceholder className="mt-8" />
+
+        <QRScanner onScanSuccess={onScan} ref={scannerRef} />
       </div>
 
       <button
-        className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-[320px] h-[52px] bg-primary-blue text-white text-[17px] font-medium rounded-[14px] shadow-[0_2px_8px_0px_rgba(76,111,255,0.32)]"
+        className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-[320px] h-[56px] bg-gray-900 text-white text-[17px] font-semibold rounded-[16px] shadow-lg active:bg-gray-800"
         onClick={() => {
-          console.log('QR 스캐너 시작 시도...');
-          if (scannerRef.current?.startScanner) {
-            console.log('QR 스캐너 시작 함수 호출');
-            scannerRef.current.startScanner();
-          } else {
-            console.log('QR 스캐너 참조를 찾을 수 없음:', scannerRef.current);
-          }
+          setShowActionSheet(true);
         }}
       >
         QR코드 촬영하기
       </button>
+
+      {showActionSheet && (
+        <>
+          <div 
+            className="fixed inset-0 bg-black/40 z-40"
+            onClick={() => setShowActionSheet(false)}
+          />
+          <div className="fixed bottom-0 left-0 right-0 bg-gray-50 z-50 pb-10 pt-2 rounded-t-[20px]">
+            <div className="w-[90%] max-w-[320px] mx-auto flex flex-col gap-2">
+              <div className="w-full bg-white rounded-[14px] overflow-hidden shadow-sm">
+                <button
+                  className="w-full h-[56px] text-[17px] font-medium text-gray-900 active:bg-gray-50"
+                  onClick={() => {
+                    if (scannerRef.current?.startScanner) {
+                      scannerRef.current.startScanner();
+                      setShowActionSheet(false);
+                    }
+                  }}
+                >
+                  카메라로 촬영
+                </button>
+                <button
+                  className="w-full h-[56px] text-[17px] font-medium text-gray-900 border-t border-gray-200 active:bg-gray-50"
+                  onClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'image/*';
+                    input.onchange = (e) => {
+                      const file = (e.target as HTMLInputElement).files?.[0];
+                      if (file && scannerRef.current?.startScanner) {
+                        scannerRef.current.startScanner();
+                        setShowActionSheet(false);
+                      }
+                    };
+                    input.click();
+                  }}
+                >
+                  앨범에서 선택
+                </button>
+              </div>
+              <button
+                className="w-full h-[56px] text-[17px] font-semibold bg-white rounded-[14px] text-gray-900 active:bg-gray-50 shadow-sm"
+                onClick={() => setShowActionSheet(false)}
+              >
+                취소
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

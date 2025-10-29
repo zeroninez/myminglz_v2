@@ -125,7 +125,7 @@ export const QRScanner = forwardRef<{ startScanner: () => void }, QRScannerProps
     <>
       <div
         id="qr-reader"
-        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[300px] bg-white p-4 rounded-xl shadow-lg z-50 hidden"
+        className="fixed inset-0 bg-black z-50 hidden"
       />
       {isScanning && (
         <div

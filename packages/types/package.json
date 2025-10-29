@@ -6,11 +6,12 @@
   "types": "./src/index.ts",
   "scripts": {
     "lint": "eslint src/**/*.ts",
-    "clean": "rm -rf .turbo node_modules",
+    "clean": "rimraf .turbo node_modules",
     "type-check": "tsc --noEmit"
   },
   "devDependencies": {
     "typescript": "^5.9.2",
-    "eslint": "^9.36.0"
+    "eslint": "^9.36.0",
+    "rimraf": "^5.0.5"
   }
 }

@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  transpilePackages: ['@myminglz/core', '@myminglz/shared', '@myminglz/types'],
   output: 'standalone',
   experimental: {
     optimizeCss: true,

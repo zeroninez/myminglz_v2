@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { CouponService } from '@myminglz/core';
 import { useKakaoShare } from '@/hooks/useKakaoShare';
+import { CouponCard } from '@/components/ui/coupon/CouponCard';
 import type { Location } from '@myminglz/types';
 
 interface LocationWithExpiry extends Location {
@@ -44,9 +45,9 @@ export default function SuccessPage() {
   const router = useRouter();
   const [couponData, setCouponData] = useState<CouponData | null>(null);
   const { shareCoupon } = useKakaoShare();
-  const [isOpen, setIsOpen] = useState(false);
-  const onOpen = () => setIsOpen(true);
-  const onClose = () => setIsOpen(false);
+  // const [isOpen, setIsOpen] = useState(false);
+  // const onOpen = () => setIsOpen(true);
+  // const onClose = () => setIsOpen(false);
 
   useEffect(() => {
     const fetchCouponData = async () => {
@@ -86,68 +87,53 @@ export default function SuccessPage() {
 
   return (
     <>
-      <div className="p-4 max-w-sm mx-auto bg-white text-center">
-        <div className="flex flex-col space-y-4">
-          <h1 className="text-xl font-bold">
-            발급완료
+      <div className="min-h-screen bg-white px-6 py-16 flex flex-col items-center">
+        {/* 상단 텍스트 */}
+        <div className="text-center mb-8">
+          <h1 className="text-gray-900 text-[32px] font-bold mb-3 leading-tight">
+            쿠폰 발급 완료!
           </h1>
-          <p>
-            쿠폰발급이 완료되었습니다.
+          <p className="text-gray-600 text-[15px]">
+            캡쳐한 쿠폰은 사용하실 수 없습니다
           </p>
-          
-          {couponData && (
-            <div className="w-full bg-gray-50 p-4 rounded-md space-y-2">
-              <p className="text-lg font-bold">
-                {couponData.code}
-              </p>
-              <p className="text-sm text-gray-600">
-                발급일시: {new Date(couponData.created_at).toLocaleString('ko-KR', {
-                  year: 'numeric',
-                  month: '2-digit',
-                  day: '2-digit',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}
-              </p>
-              <p className="text-sm text-gray-600">
-                유효기간: {couponData.location?.coupon_expiry_days ? `${new Date(new Date(couponData.created_at).getTime() + (couponData.location.coupon_expiry_days * 24 * 60 * 60 * 1000)).toLocaleDateString('ko-KR')} 까지` : '없음'}
-              </p>
-            </div>
-          )}
-
-          <div className="w-full pt-4 space-y-2">
-            <button
-              className="w-full h-12 bg-black text-white text-md hover:bg-gray-800 transition-colors rounded-md"
-              onClick={() => {
-                // 사용처 확인하기 기능 추가 예정
-              }}
-            >
-              사용처 확인하기
-            </button>
-            <button
-              className="w-full h-12 bg-black text-white text-md hover:bg-gray-800 transition-colors rounded-md"
-              onClick={() => {
-                console.log('Opening share modal...');
-                onOpen();
-              }}
-            >
-              나에게 쿠폰 보내기
-            </button>
-          </div>
         </div>
+
+        {/* 쿠폰 카드 */}
+        {couponData && (
+          <div className="mb-6">
+            <CouponCard
+              code={couponData.code}
+              createdAt={couponData.created_at}
+              expiryDays={couponData.location?.coupon_expiry_days}
+            />
+          </div>
+        )}
+
+        {/* 내 카톡방에 보내기 버튼 */}
+        <button
+          className="w-full max-w-[343px] h-[56px] bg-gray-900 text-white text-[17px] font-semibold rounded-[16px] shadow-lg active:bg-gray-800 transition-colors"
+          onClick={() => {
+            if (couponData) {
+              shareCoupon(couponData.code);
+            }
+          }}
+        >
+          내 카톡방에 보내기
+        </button>
       </div>
 
-      {isOpen && (
-        <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black bg-opacity-50" onClick={onClose} />
-          <div className="fixed bottom-0 w-full max-w-lg mx-auto bg-white rounded-t-2xl overflow-hidden">
-            <div className="p-6">
-              <p className="text-sm text-gray-600 text-center mb-6 whitespace-pre-line">
-                쿠폰을 나중에 사용할 수 있도록{'\n'}쿠폰 링크를 보내드릴게요
-              </p>
-              <div className="space-y-2">
+      {/* 액션 시트 모달 */}
+      {/* {isOpen && (
+        <>
+          <div 
+            className="fixed inset-0 bg-black/40 z-40 animate-fade-in"
+            onClick={onClose}
+          />
+          <div className="fixed bottom-0 left-0 right-0 bg-gray-50 z-50 pb-10 pt-2 rounded-t-[20px] animate-slide-up">
+            <div className="w-[90%] max-w-[343px] mx-auto flex flex-col gap-2">
+              <div className="w-full bg-white rounded-[14px] overflow-hidden shadow-sm">
                 <button
-                  className="w-full h-12 text-black flex items-center justify-center space-x-2 border border-gray-200 rounded-md"
+                  className="w-full h-[56px] text-[17px] font-medium text-gray-900 active:bg-gray-50 transition-colors"
                   onClick={() => {
                     if (couponData) {
                       shareCoupon(couponData.code);
@@ -155,31 +141,28 @@ export default function SuccessPage() {
                     onClose();
                   }}
                 >
-                  <span className="mr-2">
-                    <svg width="18" height="18" viewBox="0 0 18 18">
-                      <path fill="#3C1E1E" d="M9 0.5C4.3 0.5 0.5 3.5 0.5 7.2c0 2.3 1.5 4.3 3.8 5.5l-1 3.5c-0.1 0.2 0 0.4 0.1 0.5c0.1 0.1 0.2 0.1 0.3 0.1c0.1 0 0.2 0 0.3-0.1l4.1-2.7c0.3 0 0.6 0 0.9 0c4.7 0 8.5-3 8.5-6.7C17.5 3.5 13.7 0.5 9 0.5z"/>
-                    </svg>
-                  </span>
-                  카카오톡으로 링크 보내기
+                  카카오톡으로 공유하기
                 </button>
                 <button
-                  className="w-full h-12 text-black flex items-center justify-center space-x-2 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
+                  className="w-full h-[56px] text-[17px] font-medium text-gray-900 border-t border-gray-200 active:bg-gray-50 transition-colors"
                   onClick={() => {
                     // 클립보드에 복사 기능 추가 예정
+                    onClose();
                   }}
                 >
-                  <span className="mr-2">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                      <path d="M8 5H6C4.89543 5 4 5.89543 4 7V19C4 20.1046 4.89543 21 6 21H18C19.1046 21 20 20.1046 20 19V7C20 5.89543 19.1046 5 18 5H16M8 5V3H16V5M8 5H16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </span>
                   링크 복사하기
                 </button>
               </div>
+              <button
+                className="w-full h-[56px] text-[17px] font-semibold bg-white rounded-[14px] text-gray-900 active:bg-gray-50 transition-colors shadow-sm"
+                onClick={onClose}
+              >
+                취소
+              </button>
             </div>
           </div>
-        </div>
-      )}
+        </>
+      )} */}
     </>
   );
 }

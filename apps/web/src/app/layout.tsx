@@ -1,4 +1,5 @@
 import { Providers } from './providers';
+import './globals.css';
 
 export const metadata = {
   title: '쿠폰 테스트',
