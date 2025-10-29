@@ -17,43 +17,33 @@ interface CouponData {
   is_used: boolean;
 }
 
-// Supabase 초기화 함수
-const initializeSupabase = () => {
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    console.error('Supabase environment variables are not set');
-    return false;
-  }
-
-  try {
-    CouponService.initialize(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    );
-    return true;
-  } catch (error) {
-    console.error('Failed to initialize Supabase:', error);
-    return false;
-  }
-};
-
-// 컴포넌트 마운트 전에 Supabase 초기화
-initializeSupabase();
-
 export default function UsePage() {
   const params = useParams();
   const code = params?.code as string;
   const router = useRouter();
   const [couponData, setCouponData] = useState<CouponData | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchCouponData = async () => {
       if (!code) {
-        console.error('No coupon code provided');
+        setError('쿠폰 코드가 없습니다.');
+        setIsLoading(false);
         return;
       }
 
       try {
+        // Supabase 초기화
+        if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+          throw new Error('서버 설정 오류');
+        }
+
+        CouponService.initialize(
+          process.env.NEXT_PUBLIC_SUPABASE_URL,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+        );
+
         const result = await CouponService.getCouponByCode(code);
         
         if (result.data) {
@@ -63,17 +53,56 @@ export default function UsePage() {
             location: result.data.location,
             is_used: result.data.is_used
           });
+          setError(null);
         } else {
-          console.error('쿠폰을 찾을 수 없습니다. Error:', result.error);
+          setError(result.error || '쿠폰을 찾을 수 없습니다.');
         }
       } catch (error) {
         console.error('쿠폰 데이터 조회 실패:', error);
+        setError(error instanceof Error ? error.message : '쿠폰 조회 중 오류가 발생했습니다.');
+      } finally {
+        setIsLoading(false);
       }
     };
 
     fetchCouponData();
   }, [code]);
 
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-white px-6 py-16 flex flex-col items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-gray-200 border-t-gray-900 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">쿠폰 정보를 불러오는 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-white px-6 py-16 flex flex-col items-center justify-center">
+        <div className="text-center max-w-[343px]">
+          <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-red-500 text-2xl">✕</span>
+          </div>
+          <h1 className="text-gray-900 text-[24px] font-bold mb-3">
+            오류가 발생했습니다
+          </h1>
+          <p className="text-gray-600 text-[15px] mb-6">
+            {error}
+          </p>
+          <button
+            className="w-full h-[56px] bg-gray-900 text-white text-[17px] font-semibold rounded-[16px] shadow-lg active:bg-gray-800"
+            onClick={() => window.location.reload()}
+          >
+            다시 시도
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white px-6 py-16 flex flex-col items-center">
