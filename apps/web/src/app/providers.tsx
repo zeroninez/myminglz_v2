@@ -19,21 +19,34 @@ export function Providers({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Kakao SDK 초기화
+  const [kakaoLoaded, setKakaoLoaded] = React.useState(false);
+
   React.useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (kakaoLoaded && typeof window !== 'undefined' && window.Kakao) {
       const kakaoJS = process.env.NEXT_PUBLIC_KAKAO_JS_KEY;
-      if (!window.Kakao?.isInitialized() && kakaoJS) {
-        window.Kakao.init(kakaoJS);
-        console.log('Kakao SDK initialized:', window.Kakao.isInitialized());
+      if (!window.Kakao.isInitialized() && kakaoJS) {
+        try {
+          window.Kakao.init(kakaoJS);
+          console.log('Kakao SDK initialized:', window.Kakao.isInitialized());
+        } catch (error) {
+          console.error('Kakao SDK initialization error:', error);
+        }
       }
     }
-  }, []);
+  }, [kakaoLoaded]);
 
   return (
     <>
       <Script
         src="https://developers.kakao.com/sdk/js/kakao.js"
-        strategy="beforeInteractive"
+        strategy="afterInteractive"
+        onLoad={() => {
+          console.log('Kakao SDK loaded');
+          setKakaoLoaded(true);
+        }}
+        onError={(e) => {
+          console.error('Kakao SDK load error:', e);
+        }}
       />
       {children}
     </>
