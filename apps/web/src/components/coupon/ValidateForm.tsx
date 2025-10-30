@@ -16,37 +16,32 @@ interface ValidateFormProps {
 
 export function ValidateForm({ couponCode, onScan, qrImageUrl, isValidated, onConfirm, isConfirming }: ValidateFormProps) {
   const scannerRef = useRef<{ scanFile: (file: File) => void } | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (scannerRef.current?.scanFile) {
-      setIsScanning(true);
-      setErrorMessage(null);
-      
-      try {
-        await scannerRef.current.scanFile(file);
-        // 스캔 성공 시 - QRScanner에서 onScan을 통해 이미지가 설정됨
+  const handleFileSelect = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file && scannerRef.current?.scanFile) {
+        setIsScanning(true);
         setErrorMessage(null);
-      } catch (error) {
-        // 스캔 실패 시 에러 메시지 표시
-        setErrorMessage(error instanceof Error ? error.message : 'QR 코드를 읽을 수 없습니다.');
-      } finally {
-        setIsScanning(false);
-        // 파일 입력 초기화 (같은 파일 재선택 가능)
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
+        
+        try {
+          await scannerRef.current.scanFile(file);
+          // 스캔 성공 시 - QRScanner에서 onScan을 통해 이미지가 설정됨
+          setErrorMessage(null);
+        } catch (error) {
+          // 스캔 실패 시 에러 메시지 표시
+          setErrorMessage(error instanceof Error ? error.message : 'QR 코드를 읽을 수 없습니다.');
+        } finally {
+          setIsScanning(false);
         }
       }
-    }
-  };
-
-  const handleButtonClick = () => {
-    fileInputRef.current?.click();
+    };
+    input.click();
   };
 
   return (
@@ -107,15 +102,6 @@ export function ValidateForm({ couponCode, onScan, qrImageUrl, isValidated, onCo
         </div>
 
         <QRScanner onScanSuccess={onScan} ref={scannerRef} />
-        
-        {/* 숨겨진 파일 입력 */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          onChange={handleFileSelect}
-          className="hidden"
-        />
       </div>
 
       {/* 검증 완료 후 직원 확인 버튼 또는 QR 촬영 버튼 */}
@@ -130,7 +116,7 @@ export function ValidateForm({ couponCode, onScan, qrImageUrl, isValidated, onCo
       ) : (
         <button
           className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-[320px] h-[56px] bg-gray-900 text-white text-[17px] font-semibold rounded-[16px] shadow-lg active:bg-gray-800"
-          onClick={handleButtonClick}
+          onClick={handleFileSelect}
         >
           QR코드 촬영하기
         </button>
