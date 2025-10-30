@@ -86,7 +86,7 @@ export function ValidateForm({ couponCode, onScan, qrImageUrl, isValidated, onCo
                 <span className="text-red-500 text-2xl">✕</span>
               </div>
               <p className="text-red-600 text-[15px] font-medium mb-2">스캔 실패</p>
-              <p className="text-gray-600 text-[13px]">{errorMessage}</p>
+              <p className="text-gray-600 text-[13px] whitespace-pre-line text-left">{errorMessage}</p>
             </div>
           ) : qrImageUrl ? (
             // 스캔된 QR 이미지 표시
