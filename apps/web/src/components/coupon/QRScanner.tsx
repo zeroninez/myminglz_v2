@@ -67,6 +67,15 @@ export const QRScanner = forwardRef<{ scanFile: (file: File) => void }, QRScanne
 
   const scanFile = async (file: File): Promise<void> => {
     console.log('scanFile 함수 실행 시작', file);
+    console.log('파일 타입:', file.type);
+    console.log('파일 크기:', (file.size / 1024 / 1024).toFixed(2), 'MB');
+    
+    // 파일 타입 검증
+    if (!file.type.startsWith('image/')) {
+      const errorMsg = '이미지 파일만 업로드할 수 있습니다.';
+      onScanError?.(errorMsg);
+      throw new Error(errorMsg);
+    }
     
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
