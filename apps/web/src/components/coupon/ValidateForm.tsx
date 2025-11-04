@@ -1,9 +1,8 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { QRScanner } from '@/components/coupon/QRScanner';
 import { QRPlaceholder } from '@/components/ui/coupon/QRPlaceholder';
-import { ActionSheet, ActionSheetButton, ActionSheetButtonGroup } from '@/components/ui/ActionSheet';
 
 interface ValidateFormProps {
   couponCode?: string;
@@ -15,34 +14,52 @@ interface ValidateFormProps {
 }
 
 export function ValidateForm({ couponCode, onScan, qrImageUrl, isValidated, onConfirm, isConfirming }: ValidateFormProps) {
-  const scannerRef = useRef<{ scanFile: (file: File) => void } | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleFileSelect = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file && scannerRef.current?.scanFile) {
-        setIsScanning(true);
-        setErrorMessage(null);
-        
-        try {
-          await scannerRef.current.scanFile(file);
-          // 스캔 성공 시 - QRScanner에서 onScan을 통해 이미지가 설정됨
-          setErrorMessage(null);
-        } catch (error) {
-          // 스캔 실패 시 에러 메시지 표시
-          setErrorMessage(error instanceof Error ? error.message : 'QR 코드를 읽을 수 없습니다.');
-        } finally {
-          setIsScanning(false);
-        }
-      }
-    };
-    input.click();
+  const handleStartScan = () => {
+    setIsScanning(true);
+    setErrorMessage(null);
   };
+
+  const handleScanSuccess = (storeId: string, qrImageUrl: string) => {
+    console.log('✅ 스캔 성공:', storeId);
+    setIsScanning(false);
+    setErrorMessage(null);
+    onScan(storeId, qrImageUrl);
+  };
+
+  const handleScanError = (error: string) => {
+    console.error('❌ 스캔 에러:', error);
+    setErrorMessage(error);
+    setIsScanning(false);
+  };
+
+  const handleCancelScan = () => {
+    setIsScanning(false);
+    setErrorMessage(null);
+  };
+
+  // 스캔 중일 때는 전체 화면 카메라 뷰 표시
+  if (isScanning) {
+    return (
+      <div className="fixed inset-0 bg-black z-50">
+        <QRScanner 
+          onScanSuccess={handleScanSuccess}
+          onScanError={handleScanError}
+          isScanning={isScanning}
+        />
+        
+        {/* 취소 버튼 */}
+        <button
+          className="absolute top-4 right-4 z-10 w-10 h-10 bg-white bg-opacity-30 rounded-full flex items-center justify-center text-white text-2xl font-bold"
+          onClick={handleCancelScan}
+        >
+          ✕
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -66,20 +83,14 @@ export function ValidateForm({ couponCode, onScan, qrImageUrl, isValidated, onCo
               <span className="text-gray-400 text-xs font-bold">!</span>
             </div>
             <p className="text-[15px] text-gray-600 leading-[1.5]">
-              스캔이 안된 촬영 후 업로드까지 완료해주세요
+              QR 코드를 카메라 중앙에 맞춰주세요
             </p>
           </div>
         </div>
 
         {/* QR 코드 표시 영역 */}
         <div className="mt-8 aspect-square w-full max-w-[280px] mx-auto flex items-center justify-center border-2 border-gray-300 rounded-[14px] bg-gray-50">
-          {isScanning ? (
-            // 스캔 중 메시지
-            <div className="text-center px-4">
-              <div className="w-12 h-12 border-4 border-gray-200 border-t-gray-900 rounded-full animate-spin mx-auto mb-3"></div>
-              <p className="text-gray-600 text-[15px]">유효한 코드인지 확인중...</p>
-            </div>
-          ) : errorMessage ? (
+          {errorMessage ? (
             // 에러 메시지 표시
             <div className="text-center px-4">
               <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -100,8 +111,6 @@ export function ValidateForm({ couponCode, onScan, qrImageUrl, isValidated, onCo
             <QRPlaceholder className="" />
           )}
         </div>
-
-        <QRScanner onScanSuccess={onScan} ref={scannerRef} />
       </div>
 
       {/* 검증 완료 후 직원 확인 버튼 또는 QR 촬영 버튼 */}
@@ -116,7 +125,7 @@ export function ValidateForm({ couponCode, onScan, qrImageUrl, isValidated, onCo
       ) : (
         <button
           className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-[320px] h-[56px] bg-gray-900 text-white text-[17px] font-semibold rounded-[16px] shadow-lg active:bg-gray-800"
-          onClick={handleFileSelect}
+          onClick={handleStartScan}
         >
           QR코드 촬영하기
         </button>

@@ -1,202 +1,211 @@
-import { forwardRef, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import jsQR from 'jsqr';
 
 interface QRScannerProps {
   onScanSuccess: (storeId: string, qrImageUrl: string) => void;
   onScanError?: (error: string) => void;
+  isScanning: boolean;
 }
 
-export const QRScanner = forwardRef<{ scanFile: (file: File) => void }, QRScannerProps>(({ onScanSuccess, onScanError }, ref) => {
+export const QRScanner = ({ onScanSuccess, onScanError, isScanning }: QRScannerProps) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const animationRef = useRef<number | null>(null);
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
 
-  // scanFile 메서드를 부모 컴포넌트에 전달
-  useEffect(() => {
-    console.log('QRScanner ref 설정 시도...');
-    if (ref && typeof ref === 'object') {
-      console.log('ref 객체 발견, scanFile 설정 중...');
-      ref.current = {
-        scanFile: (file: File) => {
-          console.log('scanFile 호출됨', file);
-          scanFile(file);
+  // 카메라 시작
+  const startCamera = async () => {
+    try {
+      console.log('🎥 카메라 시작 시도...');
+      
+      // 후면 카메라 우선 사용
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: 'environment' }, // 후면 카메라 우선
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
+        audio: false
+      });
+
+      streamRef.current = stream;
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.setAttribute('playsinline', 'true'); // iOS Safari 대응
+        await videoRef.current.play();
+        console.log('✅ 카메라 시작 완료');
+        setHasPermission(true);
+        
+        // 비디오가 재생되면 스캔 시작
+        if (isScanning) {
+          scanQRCode();
         }
-      };
-      console.log('scanFile 설정 완료');
-    } else {
-      console.log('유효하지 않은 ref:', ref);
+      }
+    } catch (error) {
+      console.error('❌ 카메라 접근 실패:', error);
+      setHasPermission(false);
+      onScanError?.('카메라 접근 권한이 필요합니다.');
     }
-  }, []);
-
-  const generateQRImageFromFile = async (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      const url = URL.createObjectURL(file);
-      
-      img.onload = () => {
-        // QR 코드를 그릴 캔버스 생성
-        const canvas = document.createElement('canvas');
-        const size = 300; // QR 코드 크기
-        canvas.width = size;
-        canvas.height = size;
-        
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          reject(new Error('Canvas context not available'));
-          return;
-        }
-        
-        // 이미지를 캔버스에 그리기 (정사각형으로 크롭)
-        const minDim = Math.min(img.width, img.height);
-        const sx = (img.width - minDim) / 2;
-        const sy = (img.height - minDim) / 2;
-        
-        ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, size, size);
-        
-        // 캔버스를 이미지 URL로 변환
-        const qrImageUrl = canvas.toDataURL('image/png');
-        URL.revokeObjectURL(url);
-        resolve(qrImageUrl);
-      };
-      
-      img.onerror = () => {
-        URL.revokeObjectURL(url);
-        reject(new Error('Failed to load image'));
-      };
-      
-      img.src = url;
-    });
   };
 
-  const scanFile = async (file: File): Promise<void> => {
-    console.log('scanFile 함수 실행 시작', file);
+  // 카메라 중지
+  const stopCamera = () => {
+    console.log('🛑 카메라 중지');
     
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      const url = URL.createObjectURL(file);
-      
-      img.onload = async () => {
-        try {
-          // 캔버스에 이미지 그리기
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          
-          if (!ctx) {
-            URL.revokeObjectURL(url);
-            const errorMsg = 'Canvas를 생성할 수 없습니다.';
-            onScanError?.(errorMsg);
-            reject(new Error(errorMsg));
-            return;
-          }
-          
-          // 이미지 크기 최적화 (QR 인식률 향상)
-          const maxSize = 1500;
-          let width = img.width;
-          let height = img.height;
-          
-          if (width > maxSize || height > maxSize) {
-            if (width > height) {
-              height = (height / width) * maxSize;
-              width = maxSize;
-            } else {
-              width = (width / height) * maxSize;
-              height = maxSize;
-            }
-          }
-          
-          canvas.width = width;
-          canvas.height = height;
-          
-          // 이미지 품질 개선
-          ctx.imageSmoothingEnabled = true;
-          ctx.imageSmoothingQuality = 'high';
-          ctx.drawImage(img, 0, 0, width, height);
-          
-          // 이미지 데이터 가져오기
-          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          
-          // jsQR로 QR 코드 스캔 (다양한 시도)
-          let code = jsQR(imageData.data, imageData.width, imageData.height, {
-            inversionAttempts: "attemptBoth",
-          });
-          
-          // 첫 시도 실패 시, 대비 조정 후 재시도
-          if (!code) {
-            console.log('⚠️ 첫 스캔 실패, 이미지 대비 조정 후 재시도...');
-            
-            // 대비 증가
-            const data = imageData.data;
-            const factor = 1.5;
-            for (let i = 0; i < data.length; i += 4) {
-              data[i] = Math.min(255, data[i] * factor);     // R
-              data[i + 1] = Math.min(255, data[i + 1] * factor); // G
-              data[i + 2] = Math.min(255, data[i + 2] * factor); // B
-            }
-            ctx.putImageData(imageData, 0, 0);
-            
-            const enhancedImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            code = jsQR(enhancedImageData.data, enhancedImageData.width, enhancedImageData.height, {
-              inversionAttempts: "attemptBoth",
-            });
-          }
-          
-          URL.revokeObjectURL(url);
-          
-          if (code) {
-            console.log("✅ QR Code detected:", code.data);
-            console.log("QR Code 전체 데이터:", JSON.stringify(code.data));
-            
-            let storeSlug: string | null = null;
-            
-            // 1. URL 형식 체크: https://myminglz-validator.vercel.app/{store_slug}
-            const urlMatch = code.data.trim().match(/^https?:\/\/[^\/]+\/([a-z0-9-_]+)$/i);
-            if (urlMatch) {
-              storeSlug = urlMatch[1].toLowerCase();
-              console.log('✅ URL에서 추출된 가게 slug:', storeSlug);
-            } else {
-              // 2. store:{store_slug} 형식 체크
-              const storeMatch = code.data.trim().match(/^store:([a-z0-9-_]+)$/i);
-              if (storeMatch) {
-                storeSlug = storeMatch[1].toLowerCase();
-                console.log('✅ store: 형식에서 추출된 가게 slug:', storeSlug);
-              }
-            }
-            
-            if (storeSlug) {
-              // QR 코드 이미지 생성
-              const qrImageUrl = await generateQRImageFromFile(file);
-              onScanSuccess(storeSlug, qrImageUrl);
-              resolve();
-            } else {
-              console.log('❌ 잘못된 QR 코드 형식:', code.data);
-              console.log('❌ 예상 형식: https://myminglz-validator.vercel.app/매장이름 또는 store:매장이름');
-              const errorMsg = `유효하지 않은 QR 코드입니다.\n스캔된 데이터: "${code.data}"\n예상 형식: URL 또는 store:매장이름`;
-              onScanError?.(errorMsg);
-              reject(new Error(errorMsg));
-            }
-          } else {
-            console.log('❌ QR 코드를 찾을 수 없습니다');
-            const errorMsg = 'QR 코드를 인식할 수 없습니다.\n\n• QR 코드가 선명하게 보이도록 재촬영해주세요\n• 조명이 밝은 곳에서 촬영해주세요\n• QR 코드 전체가 화면에 들어오도록 해주세요';
-            onScanError?.(errorMsg);
-            reject(new Error(errorMsg));
-          }
-        } catch (error) {
-          console.error("Scan error:", error);
-          const errorMsg = 'QR 코드 스캔 중 오류가 발생했습니다.';
-          onScanError?.(errorMsg);
-          reject(new Error(errorMsg));
-        }
-      };
-      
-      img.onerror = () => {
-        URL.revokeObjectURL(url);
-        const errorMsg = '이미지를 불러올 수 없습니다.';
-        onScanError?.(errorMsg);
-        reject(new Error(errorMsg));
-      };
-      
-      img.src = url;
-    });
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+      animationRef.current = null;
+    }
+
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
   };
+
+  // QR 코드 스캔 (실시간)
+  const scanQRCode = () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+
+    if (!video || !canvas || !isScanning) {
+      return;
+    }
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      console.error('❌ Canvas context를 가져올 수 없습니다');
+      return;
+    }
+
+    // 비디오가 준비되지 않았으면 다음 프레임에 재시도
+    if (video.readyState !== video.HAVE_ENOUGH_DATA) {
+      animationRef.current = requestAnimationFrame(scanQRCode);
+      return;
+    }
+
+    // 캔버스 크기를 비디오 크기에 맞춤
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    // 현재 프레임을 캔버스에 그리기
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    // 이미지 데이터 가져오기
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+    // jsQR로 QR 코드 스캔
+    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+      inversionAttempts: 'attemptBoth',
+    });
+
+    if (code) {
+      console.log('✅ QR Code 감지:', code.data);
+      
+      let storeSlug: string | null = null;
+
+      // 1. URL 형식 체크: https://myminglz-validator.vercel.app/{store_slug}
+      const urlMatch = code.data.trim().match(/^https?:\/\/[^\/]+\/([a-z0-9-_]+)$/i);
+      if (urlMatch) {
+        storeSlug = urlMatch[1].toLowerCase();
+        console.log('✅ URL에서 추출된 가게 slug:', storeSlug);
+      } else {
+        // 2. store:{store_slug} 형식 체크
+        const storeMatch = code.data.trim().match(/^store:([a-z0-9-_]+)$/i);
+        if (storeMatch) {
+          storeSlug = storeMatch[1].toLowerCase();
+          console.log('✅ store: 형식에서 추출된 가게 slug:', storeSlug);
+        }
+      }
+
+      if (storeSlug) {
+        // QR 코드가 감지된 영역의 이미지 캡처
+        const qrImageUrl = canvas.toDataURL('image/png');
+        
+        // 스캔 중지
+        if (animationRef.current) {
+          cancelAnimationFrame(animationRef.current);
+          animationRef.current = null;
+        }
+        
+        onScanSuccess(storeSlug, qrImageUrl);
+      } else {
+        console.log('⚠️ 잘못된 QR 코드 형식:', code.data);
+        // 계속 스캔 시도
+        animationRef.current = requestAnimationFrame(scanQRCode);
+      }
+    } else {
+      // QR 코드를 찾지 못하면 다음 프레임 스캔
+      animationRef.current = requestAnimationFrame(scanQRCode);
+    }
+  };
+
+  // isScanning 상태에 따라 카메라 제어
+  useEffect(() => {
+    if (isScanning) {
+      startCamera();
+    } else {
+      stopCamera();
+    }
+
+    // 컴포넌트 언마운트 시 카메라 중지
+    return () => {
+      stopCamera();
+    };
+  }, [isScanning]);
+
+  if (!isScanning) {
+    return null;
+  }
 
   return (
-    <div id="qr-reader" className="hidden" />
+    <div className="relative w-full h-full">
+      {/* 비디오 스트림 */}
+      <video
+        ref={videoRef}
+        className="w-full h-full object-cover"
+        playsInline
+        muted
+      />
+      
+      {/* QR 코드 스캔용 캔버스 (숨김) */}
+      <canvas ref={canvasRef} className="hidden" />
+      
+      {/* 스캔 가이드 오버레이 */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div className="relative w-64 h-64">
+          {/* 모서리 가이드 */}
+          <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-white"></div>
+          <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-white"></div>
+          <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-white"></div>
+          <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-white"></div>
+        </div>
+      </div>
+
+      {/* 안내 텍스트 */}
+      <div className="absolute bottom-8 left-0 right-0 text-center">
+        <p className="text-white text-lg font-medium bg-black bg-opacity-50 px-4 py-2 rounded-lg inline-block">
+          QR 코드를 화면 중앙에 맞춰주세요
+        </p>
+      </div>
+
+      {/* 권한 요청 실패 메시지 */}
+      {hasPermission === false && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-75">
+          <div className="text-white text-center px-4">
+            <p className="text-xl font-bold mb-2">카메라 접근 권한 필요</p>
+            <p className="text-sm">
+              설정에서 카메라 권한을 허용해주세요
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
   );
-});
+};
