@@ -136,22 +136,26 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- updated_at 트리거 설정
+-- updated_at 트리거 설정 (기존 트리거가 있으면 삭제 후 재생성)
+DROP TRIGGER IF EXISTS update_events_updated_at ON events;
 CREATE TRIGGER update_events_updated_at
   BEFORE UPDATE ON events
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_landing_pages_updated_at ON landing_pages;
 CREATE TRIGGER update_landing_pages_updated_at
   BEFORE UPDATE ON landing_pages
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_page_contents_updated_at ON page_contents;
 CREATE TRIGGER update_page_contents_updated_at
   BEFORE UPDATE ON page_contents
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_event_images_updated_at ON event_images;
 CREATE TRIGGER update_event_images_updated_at
   BEFORE UPDATE ON event_images
   FOR EACH ROW
@@ -164,28 +168,40 @@ ALTER TABLE page_contents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE event_images ENABLE ROW LEVEL SECURITY;
 
 -- 이벤트 테이블 정책: 사용자는 자신의 이벤트만 접근 가능
+DROP POLICY IF EXISTS "Users can view their own events" ON events;
 CREATE POLICY "Users can view their own events"
   ON events FOR SELECT
   TO authenticated
   USING (auth.uid() = user_id);
 
+-- 공개 조회 정책: 도메인 코드로 이벤트 조회 (인증 불필요)
+DROP POLICY IF EXISTS "Public can view events by domain code" ON events;
+CREATE POLICY "Public can view events by domain code"
+  ON events FOR SELECT
+  TO anon, authenticated
+  USING (true);
+
+DROP POLICY IF EXISTS "Users can insert their own events" ON events;
 CREATE POLICY "Users can insert their own events"
   ON events FOR INSERT
   TO authenticated
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own events" ON events;
 CREATE POLICY "Users can update their own events"
   ON events FOR UPDATE
   TO authenticated
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own events" ON events;
 CREATE POLICY "Users can delete their own events"
   ON events FOR DELETE
   TO authenticated
   USING (auth.uid() = user_id);
 
 -- 랜딩 페이지 테이블 정책: 이벤트 소유자만 접근 가능
+DROP POLICY IF EXISTS "Users can manage landing pages for their events" ON landing_pages;
 CREATE POLICY "Users can manage landing pages for their events"
   ON landing_pages
   FOR ALL
@@ -205,7 +221,15 @@ CREATE POLICY "Users can manage landing pages for their events"
     )
   );
 
+-- 공개 조회 정책: 랜딩 페이지 조회 (인증 불필요)
+DROP POLICY IF EXISTS "Public can view landing pages" ON landing_pages;
+CREATE POLICY "Public can view landing pages"
+  ON landing_pages FOR SELECT
+  TO anon, authenticated
+  USING (true);
+
 -- 페이지 콘텐츠 테이블 정책: 랜딩 페이지 소유자만 접근 가능
+DROP POLICY IF EXISTS "Users can manage page contents for their landing pages" ON page_contents;
 CREATE POLICY "Users can manage page contents for their landing pages"
   ON page_contents
   FOR ALL
@@ -227,7 +251,15 @@ CREATE POLICY "Users can manage page contents for their landing pages"
     )
   );
 
+-- 공개 조회 정책: 페이지 콘텐츠 조회 (인증 불필요)
+DROP POLICY IF EXISTS "Public can view page contents" ON page_contents;
+CREATE POLICY "Public can view page contents"
+  ON page_contents FOR SELECT
+  TO anon, authenticated
+  USING (true);
+
 -- 이벤트 이미지 테이블 정책: 이벤트 소유자만 접근 가능
+DROP POLICY IF EXISTS "Users can manage images for their events" ON event_images;
 CREATE POLICY "Users can manage images for their events"
   ON event_images
   FOR ALL

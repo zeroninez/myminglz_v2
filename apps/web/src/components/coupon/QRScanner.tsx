@@ -109,18 +109,26 @@ export const QRScanner = ({ onScanSuccess, onScanError, isScanning }: QRScannerP
       console.log('✅ QR Code 감지:', code.data);
             
             let storeSlug: string | null = null;
+            const qrData = code.data.trim();
             
-            // 1. URL 형식 체크: https://myminglz-validator.vercel.app/{store_slug}
-            const urlMatch = code.data.trim().match(/^https?:\/\/[^\/]+\/([a-z0-9-_]+)$/i);
-            if (urlMatch) {
-              storeSlug = urlMatch[1].toLowerCase();
-              console.log('✅ URL에서 추출된 가게 slug:', storeSlug);
+            // 1. 이벤트 검증 URL 형식 체크: https://.../{domain_code}/verify/{store_id}
+            const eventVerifyMatch = qrData.match(/\/verify\/([a-z0-9-_]+)$/i);
+            if (eventVerifyMatch) {
+              storeSlug = eventVerifyMatch[1];
+              console.log('✅ 이벤트 검증 URL에서 추출된 store_id:', storeSlug);
             } else {
-              // 2. store:{store_slug} 형식 체크
-              const storeMatch = code.data.trim().match(/^store:([a-z0-9-_]+)$/i);
-              if (storeMatch) {
-                storeSlug = storeMatch[1].toLowerCase();
-                console.log('✅ store: 형식에서 추출된 가게 slug:', storeSlug);
+              // 2. 기존 쿠폰 URL 형식 체크: https://myminglz-validator.vercel.app/{store_slug}
+              const urlMatch = qrData.match(/^https?:\/\/[^\/]+\/([a-z0-9-_]+)$/i);
+              if (urlMatch) {
+                storeSlug = urlMatch[1].toLowerCase();
+                console.log('✅ URL에서 추출된 가게 slug:', storeSlug);
+              } else {
+                // 3. store:{store_slug} 형식 체크
+                const storeMatch = qrData.match(/^store:([a-z0-9-_]+)$/i);
+                if (storeMatch) {
+                  storeSlug = storeMatch[1].toLowerCase();
+                  console.log('✅ store: 형식에서 추출된 가게 slug:', storeSlug);
+                }
               }
             }
             

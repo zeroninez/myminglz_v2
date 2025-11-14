@@ -1,7 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   transpilePackages: ['@myminglz/core', '@myminglz/shared', '@myminglz/types'],
-  output: 'standalone',
+  // Vercel 배포 시 standalone 모드 비활성화
+  // output: 'standalone',
   experimental: {
     optimizeCss: true,
     scrollRestoration: true,

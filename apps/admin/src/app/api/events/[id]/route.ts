@@ -9,11 +9,6 @@ import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-);
-
 // 이벤트 상세 조회 (랜딩 페이지 및 콘텐츠 포함)
 export async function GET(
   request: Request,
@@ -30,7 +25,32 @@ export async function GET(
       );
     }
 
-    const { data: userData, error: userError } = await supabase.auth.getUser(accessToken);
+    // 사용자 확인 (먼저 토큰 검증)
+    const tempSupabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+    );
+    
+    const { data: userData, error: userError } = await tempSupabase.auth.getUser(accessToken);
+    if (userError || !userData.user) {
+      return NextResponse.json(
+        { success: false, error: '인증에 실패했습니다.' },
+        { status: 401 }
+      );
+    }
+
+    // 인증된 Supabase 클라이언트 생성 (RLS를 위해 Authorization 헤더 설정)
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
+      {
+        global: {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        },
+      }
+    );
     if (userError || !userData.user) {
       return NextResponse.json(
         { success: false, error: '인증에 실패했습니다.' },
@@ -125,7 +145,32 @@ export async function PUT(
       );
     }
 
-    const { data: userData, error: userError } = await supabase.auth.getUser(accessToken);
+    // 사용자 확인 (먼저 토큰 검증)
+    const tempSupabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+    );
+    
+    const { data: userData, error: userError } = await tempSupabase.auth.getUser(accessToken);
+    if (userError || !userData.user) {
+      return NextResponse.json(
+        { success: false, error: '인증에 실패했습니다.' },
+        { status: 401 }
+      );
+    }
+
+    // 인증된 Supabase 클라이언트 생성 (RLS를 위해 Authorization 헤더 설정)
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
+      {
+        global: {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        },
+      }
+    );
     if (userError || !userData.user) {
       return NextResponse.json(
         { success: false, error: '인증에 실패했습니다.' },
@@ -254,7 +299,32 @@ export async function DELETE(
       );
     }
 
-    const { data: userData, error: userError } = await supabase.auth.getUser(accessToken);
+    // 사용자 확인 (먼저 토큰 검증)
+    const tempSupabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+    );
+    
+    const { data: userData, error: userError } = await tempSupabase.auth.getUser(accessToken);
+    if (userError || !userData.user) {
+      return NextResponse.json(
+        { success: false, error: '인증에 실패했습니다.' },
+        { status: 401 }
+      );
+    }
+
+    // 인증된 Supabase 클라이언트 생성 (RLS를 위해 Authorization 헤더 설정)
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
+      {
+        global: {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        },
+      }
+    );
     if (userError || !userData.user) {
       return NextResponse.json(
         { success: false, error: '인증에 실패했습니다.' },
