@@ -13,6 +13,17 @@ interface Store {
 }
 
 interface EventInfoSectionProps {
+  initialData?: {
+    name?: string;
+    domain_code?: string;
+    start_date?: string;
+    end_date?: string;
+    background_color?: string;
+    description?: string;
+    content_html?: string;
+    coupon_preview_image_url?: string;
+    event_info_config?: any;
+  };
   onDataChange?: (data: {
     name?: string;
     domain_code?: string;
@@ -26,20 +37,57 @@ interface EventInfoSectionProps {
   }) => void;
 }
 
-export default function EventInfoSection({ onDataChange }: EventInfoSectionProps) {
-  const [eventName, setEventName] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [domainCode, setDomainCode] = useState('');
+export default function EventInfoSection({ initialData, onDataChange }: EventInfoSectionProps) {
+  const [eventName, setEventName] = useState(initialData?.name || '');
+  const [startDate, setStartDate] = useState(initialData?.start_date || '');
+  const [endDate, setEndDate] = useState(initialData?.end_date || '');
+  const [domainCode, setDomainCode] = useState(initialData?.domain_code || '');
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
   const [qrLoading, setQrLoading] = useState(false);
   
   // 쿠폰 사용 방식
-  const [couponUsage, setCouponUsage] = useState<'immediate' | 'later'>('later');
+  const [couponUsage, setCouponUsage] = useState<'immediate' | 'later'>(
+    initialData?.event_info_config?.coupon_usage || 'later'
+  );
   
   // 사용처 목록
-  const [stores, setStores] = useState<Store[]>([]);
+  const [stores, setStores] = useState<Store[]>(() => {
+    if (initialData?.event_info_config?.stores && Array.isArray(initialData.event_info_config.stores)) {
+      return initialData.event_info_config.stores.map((store: any) => ({
+        id: store.id || `store-${Date.now()}-${Math.random()}`,
+        name: store.name || '',
+        benefit: store.benefit || '',
+        usagePeriod: store.usage_period || '',
+        useEventPeriod: store.use_event_period !== false,
+        qrCodeUrl: null,
+      }));
+    }
+    return [];
+  });
   const [storeQrLoading, setStoreQrLoading] = useState<Record<string, boolean>>({});
+
+  // initialData가 변경되면 상태 업데이트
+  useEffect(() => {
+    if (initialData) {
+      setEventName(initialData.name || '');
+      setStartDate(initialData.start_date || '');
+      setEndDate(initialData.end_date || '');
+      setDomainCode(initialData.domain_code || '');
+      setCouponUsage(initialData.event_info_config?.coupon_usage || 'later');
+      if (initialData.event_info_config?.stores && Array.isArray(initialData.event_info_config.stores)) {
+        setStores(
+          initialData.event_info_config.stores.map((store: any) => ({
+            id: store.id || `store-${Date.now()}-${Math.random()}`,
+            name: store.name || '',
+            benefit: store.benefit || '',
+            usagePeriod: store.usage_period || '',
+            useEventPeriod: store.use_event_period !== false,
+            qrCodeUrl: null,
+          }))
+        );
+      }
+    }
+  }, [initialData]);
 
   // 도메인 주소가 변경되면 QR 코드 생성
   useEffect(() => {

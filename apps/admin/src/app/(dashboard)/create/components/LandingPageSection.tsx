@@ -6,13 +6,6 @@ import BlankTemplatePreview from '../templates/common/BlankTemplatePreview';
 import CoverType01Preview from '../templates/cover/Type01Preview';
 
 const backgroundColors = ['#0F172A', '#111827', '#1E293B', '#F8FAFC'];
-const landingPages = [
-  { id: 1, label: 'Page 1' },
-  { id: 2, label: 'Page 2' },
-  { id: 3, label: 'Page 3' },
-  { id: 4, label: 'Page 4' },
-  { id: 5, label: 'Page 5' },
-];
 
 type TemplateCategory = '표지' | '본문 1' | '본문 2' | '본문 3' | '갤러리' | '기타';
 type TemplateVariant = '유형1' | '유형2';
@@ -131,6 +124,11 @@ const getDefaultSelectionForPage = (
 };
 
 interface LandingPageSectionProps {
+  initialData?: {
+    pageSelections: Record<number, { pageType: string; templateType: string }>;
+    pageBackgroundColors: Record<number, string>;
+    designValues: Record<number, Record<string, string>>;
+  };
   onDataChange?: (data: {
     pageSelections: Record<number, { pageType: string; templateType: string }>;
     pageBackgroundColors: Record<number, string>;
@@ -138,20 +136,82 @@ interface LandingPageSectionProps {
   }) => void;
 }
 
-export default function LandingPageSection({ onDataChange }: LandingPageSectionProps) {
+export default function LandingPageSection({ initialData, onDataChange }: LandingPageSectionProps) {
   const [activeTab, setActiveTab] = useState<'type' | 'design'>('type');
   const [selectedPage, setSelectedPage] = useState(1);
+  
+  // initialData에서 페이지 정보 추출
+  const getInitialPages = () => {
+    if (initialData?.pageSelections) {
+      const pageNumbers = Object.keys(initialData.pageSelections)
+        .map(Number)
+        .sort((a, b) => a - b);
+      return pageNumbers.map((num) => ({ id: num, label: `Page ${num}` }));
+    }
+    return [{ id: 1, label: 'Page 1' }];
+  };
+
+  // 동적 페이지 관리
+  const [pages, setPages] = useState<Array<{ id: number; label: string }>>(getInitialPages);
   const [pageSelections, setPageSelections] = useState<
     Record<number, { pageType: TemplateCategory; templateType: TemplateVariant }>
-  >({
-    1: getDefaultSelectionForPage(1),
+  >(() => {
+    if (initialData?.pageSelections) {
+      const result: Record<number, { pageType: TemplateCategory; templateType: TemplateVariant }> = {};
+      Object.entries(initialData.pageSelections).forEach(([key, value]) => {
+        result[Number(key)] = {
+          pageType: value.pageType as TemplateCategory,
+          templateType: value.templateType as TemplateVariant,
+        };
+      });
+      return result;
+    }
+    return { 1: getDefaultSelectionForPage(1) };
   });
-  const [pageBackgroundColors, setPageBackgroundColors] = useState<Record<number, string>>({
-    1: backgroundColors[0],
+  const [pageBackgroundColors, setPageBackgroundColors] = useState<Record<number, string>>(() => {
+    if (initialData?.pageBackgroundColors) {
+      return initialData.pageBackgroundColors;
+    }
+    return { 1: backgroundColors[0] };
   });
-  const [designValues, setDesignValues] = useState<Record<number, Record<string, string>>>({
-    1: templateDefaultValues['표지']?.['유형1'] ?? {},
+  const [designValues, setDesignValues] = useState<Record<number, Record<string, string>>>(() => {
+    if (initialData?.designValues) {
+      return initialData.designValues;
+    }
+    return { 1: templateDefaultValues['표지']?.['유형1'] ?? {} };
   });
+
+  // initialData가 변경되면 상태 업데이트
+  useEffect(() => {
+    if (initialData) {
+      const newPages = getInitialPages();
+      setPages(newPages);
+      
+      if (initialData.pageSelections) {
+        const result: Record<number, { pageType: TemplateCategory; templateType: TemplateVariant }> = {};
+        Object.entries(initialData.pageSelections).forEach(([key, value]) => {
+          result[Number(key)] = {
+            pageType: value.pageType as TemplateCategory,
+            templateType: value.templateType as TemplateVariant,
+          };
+        });
+        setPageSelections(result);
+      }
+      
+      if (initialData.pageBackgroundColors) {
+        setPageBackgroundColors(initialData.pageBackgroundColors);
+      }
+      
+      if (initialData.designValues) {
+        setDesignValues(initialData.designValues);
+      }
+      
+      // 첫 번째 페이지 선택
+      if (newPages.length > 0) {
+        setSelectedPage(newPages[0].id);
+      }
+    }
+  }, [initialData]);
 
   // 데이터 변경 시 부모 컴포넌트에 알림
   useEffect(() => {
@@ -165,9 +225,9 @@ export default function LandingPageSection({ onDataChange }: LandingPageSectionP
   }, [pageSelections, pageBackgroundColors, designValues, onDataChange]);
 
   const selectedPageLabel = useMemo(() => {
-    const found = landingPages.find((page) => page.id === selectedPage);
+    const found = pages.find((page) => page.id === selectedPage);
     return found ? found.label : `Page ${selectedPage}`;
-  }, [selectedPage]);
+  }, [pages, selectedPage]);
 
   const currentSelection = useMemo(() => {
     return (
@@ -184,12 +244,10 @@ export default function LandingPageSection({ onDataChange }: LandingPageSectionP
     [pageType]
   );
 
+  // 모든 페이지에 동일한 페이지 유형 옵션 제공
   const availableTemplateCategories = useMemo(() => {
-    if (selectedPage === 1) {
-      return templateCategories;
-    }
-    return ['기타'] as TemplateCategory[];
-  }, [selectedPage]);
+    return templateCategories;
+  }, []);
 
   const SelectedTemplate = templateComponentMap[pageType]?.[templateType];
   const currentFields = templateFieldConfigs[pageType]?.[templateType] ?? [];
@@ -326,6 +384,62 @@ export default function LandingPageSection({ onDataChange }: LandingPageSectionP
         templateType: nextTemplateType,
       },
     }));
+  };
+
+  // 페이지 추가
+  const handleAddPage = () => {
+    const newPageId = Math.max(...pages.map(p => p.id), 0) + 1;
+    const newPage = { id: newPageId, label: `Page ${newPageId}` };
+    
+    setPages((prev) => [...prev, newPage]);
+    setPageSelections((prev) => ({
+      ...prev,
+      [newPageId]: getDefaultSelectionForPage(newPageId),
+    }));
+    setPageBackgroundColors((prev) => ({
+      ...prev,
+      [newPageId]: backgroundColors[0],
+    }));
+    setDesignValues((prev) => ({
+      ...prev,
+      [newPageId]: templateDefaultValues['기타']?.['유형1'] ?? {},
+    }));
+    setSelectedPage(newPageId);
+  };
+
+  // 페이지 제거
+  const handleRemovePage = (pageId: number) => {
+    if (pages.length <= 1) {
+      alert('최소 1개의 페이지는 필요합니다.');
+      return;
+    }
+
+    setPages((prev) => prev.filter((p) => p.id !== pageId));
+    
+    // 제거된 페이지의 데이터 정리
+    setPageSelections((prev) => {
+      const updated = { ...prev };
+      delete updated[pageId];
+      return updated;
+    });
+    setPageBackgroundColors((prev) => {
+      const updated = { ...prev };
+      delete updated[pageId];
+      return updated;
+    });
+    setDesignValues((prev) => {
+      const updated = { ...prev };
+      delete updated[pageId];
+      return updated;
+    });
+
+    // 현재 선택된 페이지가 제거되면 다른 페이지 선택
+    if (selectedPage === pageId) {
+      const remainingPages = pages.filter((p) => p.id !== pageId);
+      if (remainingPages.length > 0) {
+        setSelectedPage(remainingPages[0].id);
+      }
+    }
   };
 
   const renderDesignFields = () => {
@@ -477,10 +591,10 @@ export default function LandingPageSection({ onDataChange }: LandingPageSectionP
         <div className="mt-4 rounded-lg border border-dashed border-gray-200 bg-white/60 p-3">
           <span className="text-xs font-semibold text-gray-600">사용 중인 배경색 빠르게 적용</span>
           <div className="mt-3 flex flex-wrap gap-2">
-            {savedBackgroundColors.map(({ color, pages }) => {
+            {savedBackgroundColors.map(({ color, pages: pageIds }) => {
               const isSelected = currentBackgroundColor.toLowerCase() === color.toLowerCase();
-              const pageLabels = pages
-                .map((pageId) => landingPages.find((page) => page.id === pageId)?.label ?? `Page ${pageId}`)
+              const pageLabels = pageIds
+                .map((pageId) => pages.find((page) => page.id === pageId)?.label ?? `Page ${pageId}`)
                 .join(', ');
               return (
                 <button
@@ -520,42 +634,60 @@ export default function LandingPageSection({ onDataChange }: LandingPageSectionP
             {/* 썸네일 리스트 */}
             <div className="flex h-[460px] w-[200px] flex-col items-center rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
               <span className="text-sm font-semibold text-blue-600">
-                {selectedPage} / {landingPages.length}
+                {selectedPage} / {pages.length}
               </span>
               <div className="mt-4 w-full flex-1 overflow-y-auto">
                 <div className="flex flex-col gap-3 pr-1">
-                  {landingPages.map((page) => {
+                  {pages.map((page) => {
                     const isActive = page.id === selectedPage;
                     return (
-                      <button
-                        key={page.id}
-                        onClick={() => setSelectedPage(page.id)}
-                        className={`group flex flex-col items-center gap-2 rounded-2xl border-2 px-3 py-3 transition-all ${
-                          isActive
-                            ? 'border-blue-500 bg-blue-50 shadow-sm'
-                            : 'border-slate-200 bg-white hover:border-slate-300'
-                        }`}
-                      >
-                        <div
-                          className={`h-24 w-16 rounded-2xl border ${
+                      <div key={page.id} className="relative group">
+                        <button
+                          onClick={() => setSelectedPage(page.id)}
+                          className={`group flex w-full flex-col items-center gap-2 rounded-2xl border-2 px-3 py-3 transition-all ${
                             isActive
-                              ? 'border-blue-500 bg-white'
-                              : 'border-slate-200 bg-slate-100'
-                          }`}
-                        />
-                        <span
-                          className={`rounded-full px-3 py-1 text-[11px] font-medium ${
-                            isActive ? 'bg-blue-500 text-white' : 'text-slate-500'
+                              ? 'border-blue-500 bg-blue-50 shadow-sm'
+                              : 'border-slate-200 bg-white hover:border-slate-300'
                           }`}
                         >
-                          {page.label}
-                        </span>
-                      </button>
+                          <div
+                            className={`h-24 w-16 rounded-2xl border ${
+                              isActive
+                                ? 'border-blue-500 bg-white'
+                                : 'border-slate-200 bg-slate-100'
+                            }`}
+                          />
+                          <span
+                            className={`rounded-full px-3 py-1 text-[11px] font-medium ${
+                              isActive ? 'bg-blue-500 text-white' : 'text-slate-500'
+                            }`}
+                          >
+                            {page.label}
+                          </span>
+                        </button>
+                        {pages.length > 1 && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemovePage(page.id);
+                            }}
+                            className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white opacity-0 transition-opacity hover:bg-red-600 group-hover:opacity-100"
+                            title="페이지 삭제"
+                          >
+                            <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
               </div>
-              <button className="mt-4 w-full rounded-xl bg-blue-500 py-2 text-xs font-semibold text-white transition-colors hover:bg-blue-600">
+              <button
+                onClick={handleAddPage}
+                className="mt-4 w-full rounded-xl bg-blue-500 py-2 text-xs font-semibold text-white transition-colors hover:bg-blue-600"
+              >
                 + 화면 추가하기
               </button>
             </div>

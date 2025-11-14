@@ -1,8 +1,19 @@
+'use client';
+
+import { useEffect } from 'react';
+
 interface EventMissionSectionProps {
+  initialData?: { mission_config?: any };
   onDataChange?: (data: { mission_config?: any }) => void;
 }
 
-export default function EventMissionSection({ onDataChange }: EventMissionSectionProps) {
+export default function EventMissionSection({ initialData, onDataChange }: EventMissionSectionProps) {
+  // initialData가 있으면 부모에 알림
+  useEffect(() => {
+    if (initialData && onDataChange) {
+      onDataChange(initialData);
+    }
+  }, [initialData, onDataChange]);
   return (
     <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
       <h3 className="text-lg font-semibold text-gray-900">이벤트 미션</h3>

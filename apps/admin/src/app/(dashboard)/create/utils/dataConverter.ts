@@ -30,27 +30,39 @@ export function convertPageBuilderToDB(
   pageBuilderData: PageBuilderData
 ): LandingPageData[] {
   const result: LandingPageData[] = [];
-  const pageNumbers = [1, 2, 3, 4, 5]; // 고정된 5개 페이지
+  
+  // 실제로 존재하는 페이지 번호만 추출 (동적 페이지 수 지원)
+  const pageNumbers = Array.from(
+    new Set([
+      ...Object.keys(pageBuilderData.pageSelections).map(Number),
+      ...Object.keys(pageBuilderData.pageBackgroundColors).map(Number),
+      ...Object.keys(pageBuilderData.designValues).map(Number),
+    ])
+  ).sort((a, b) => a - b);
 
-  for (const pageNumber of pageNumbers) {
-    const selection = pageBuilderData.pageSelections[pageNumber];
-    const backgroundColor = pageBuilderData.pageBackgroundColors[pageNumber] || '#000000';
-    const designValues = pageBuilderData.designValues[pageNumber] || {};
+  // 페이지 번호를 순서대로 재정렬 (1, 2, 3...)
+  const sortedPageNumbers = pageNumbers.map((_, index) => index + 1);
+
+  sortedPageNumbers.forEach((newPageNumber, index) => {
+    const originalPageNumber = pageNumbers[index];
+    const selection = pageBuilderData.pageSelections[originalPageNumber];
+    const backgroundColor = pageBuilderData.pageBackgroundColors[originalPageNumber] || '#000000';
+    const designValues = pageBuilderData.designValues[originalPageNumber] || {};
 
     if (!selection) {
       // 기본값 사용
-      const defaultSelection = pageNumber === 1 
+      const defaultSelection = newPageNumber === 1 
         ? { pageType: '표지', templateType: '유형1' }
         : { pageType: '기타', templateType: '유형1' };
       
       result.push({
-        page_number: pageNumber,
+        page_number: newPageNumber,
         page_type: defaultSelection.pageType,
         template_type: defaultSelection.templateType,
         background_color: backgroundColor,
         contents: [],
       });
-      continue;
+      return;
     }
 
     // 콘텐츠 추출
@@ -87,13 +99,13 @@ export function convertPageBuilderToDB(
     });
 
     result.push({
-      page_number: pageNumber,
+      page_number: newPageNumber,
       page_type: selection.pageType,
       template_type: selection.templateType,
       background_color: backgroundColor,
       contents,
     });
-  }
+  });
 
   return result;
 }
