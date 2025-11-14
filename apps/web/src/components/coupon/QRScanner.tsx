@@ -78,53 +78,53 @@ export const QRScanner = ({ onScanSuccess, onScanError, isScanning }: QRScannerP
       return;
     }
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
       console.error('❌ Canvas context를 가져올 수 없습니다');
-      return;
-    }
-
+            return;
+          }
+          
     // 비디오가 준비되지 않았으면 다음 프레임에 재시도
     if (video.readyState !== video.HAVE_ENOUGH_DATA) {
       animationRef.current = requestAnimationFrame(scanQRCode);
       return;
-    }
+            }
 
     // 캔버스 크기를 비디오 크기에 맞춤
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-
+          
     // 현재 프레임을 캔버스에 그리기
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    // 이미지 데이터 가져오기
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
+          
+          // 이미지 데이터 가져오기
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          
     // jsQR로 QR 코드 스캔
     const code = jsQR(imageData.data, imageData.width, imageData.height, {
       inversionAttempts: 'attemptBoth',
     });
-
-    if (code) {
+          
+          if (code) {
       console.log('✅ QR Code 감지:', code.data);
-      
-      let storeSlug: string | null = null;
-
-      // 1. URL 형식 체크: https://myminglz-validator.vercel.app/{store_slug}
-      const urlMatch = code.data.trim().match(/^https?:\/\/[^\/]+\/([a-z0-9-_]+)$/i);
-      if (urlMatch) {
-        storeSlug = urlMatch[1].toLowerCase();
-        console.log('✅ URL에서 추출된 가게 slug:', storeSlug);
-      } else {
-        // 2. store:{store_slug} 형식 체크
-        const storeMatch = code.data.trim().match(/^store:([a-z0-9-_]+)$/i);
-        if (storeMatch) {
-          storeSlug = storeMatch[1].toLowerCase();
-          console.log('✅ store: 형식에서 추출된 가게 slug:', storeSlug);
-        }
-      }
-
-      if (storeSlug) {
+            
+            let storeSlug: string | null = null;
+            
+            // 1. URL 형식 체크: https://myminglz-validator.vercel.app/{store_slug}
+            const urlMatch = code.data.trim().match(/^https?:\/\/[^\/]+\/([a-z0-9-_]+)$/i);
+            if (urlMatch) {
+              storeSlug = urlMatch[1].toLowerCase();
+              console.log('✅ URL에서 추출된 가게 slug:', storeSlug);
+            } else {
+              // 2. store:{store_slug} 형식 체크
+              const storeMatch = code.data.trim().match(/^store:([a-z0-9-_]+)$/i);
+              if (storeMatch) {
+                storeSlug = storeMatch[1].toLowerCase();
+                console.log('✅ store: 형식에서 추출된 가게 slug:', storeSlug);
+              }
+            }
+            
+            if (storeSlug) {
         // QR 코드가 감지된 영역의 이미지 캡처
         const qrImageUrl = canvas.toDataURL('image/png');
         
@@ -134,16 +134,16 @@ export const QRScanner = ({ onScanSuccess, onScanError, isScanning }: QRScannerP
           animationRef.current = null;
         }
         
-        onScanSuccess(storeSlug, qrImageUrl);
-      } else {
+              onScanSuccess(storeSlug, qrImageUrl);
+            } else {
         console.log('⚠️ 잘못된 QR 코드 형식:', code.data);
         // 계속 스캔 시도
         animationRef.current = requestAnimationFrame(scanQRCode);
-      }
-    } else {
+            }
+          } else {
       // QR 코드를 찾지 못하면 다음 프레임 스캔
       animationRef.current = requestAnimationFrame(scanQRCode);
-    }
+          }
   };
 
   // isScanning 상태에 따라 카메라 제어
@@ -152,7 +152,7 @@ export const QRScanner = ({ onScanSuccess, onScanError, isScanning }: QRScannerP
       startCamera();
     } else {
       stopCamera();
-    }
+        }
 
     // 컴포넌트 언마운트 시 카메라 중지
     return () => {
