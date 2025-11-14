@@ -1,4 +1,4 @@
-import PhoneFrame from './PhoneFrame';
+// PhoneFrame 제거 - 테두리와 시간 없이 내용만 표시
 
 interface CoverType01Props {
   data: Record<string, string>;
@@ -39,7 +39,10 @@ export default function CoverType01({ data }: CoverType01Props) {
   const isBody3Visible = body3Visible !== 'false';
 
   return (
-    <PhoneFrame innerBackgroundColor={backgroundColor}>
+    <div 
+      className="flex h-full w-full flex-col px-6 py-7"
+      style={{ backgroundColor }}
+    >
       <div className="flex h-full flex-col">
         <div
           className="mt-8 inline-flex items-center justify-center rounded-full border border-white/80 px-4 py-1 text-[11px] font-medium uppercase tracking-wide"
@@ -84,7 +87,7 @@ export default function CoverType01({ data }: CoverType01Props) {
           </div>
         </div>
       </div>
-    </PhoneFrame>
+    </div>
   );
 }
 

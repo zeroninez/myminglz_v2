@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import CoverType01 from '@/components/templates/CoverType01';
 
@@ -66,7 +66,6 @@ export default function NotFound() {
   const [eventData, setEventData] = useState<EventData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     // 경로에서 도메인 코드 추출 (예: /sdsd → sdsd)
@@ -97,9 +96,6 @@ export default function NotFound() {
           }
 
           setEventData(result.data);
-          if (result.data.landing_pages && result.data.landing_pages.length > 0) {
-            setCurrentPage(result.data.landing_pages[0].page_number);
-          }
         } catch (err: any) {
           console.error('이벤트 로드 오류:', err);
           setError('이벤트를 불러오는 중 오류가 발생했습니다.');
@@ -114,47 +110,7 @@ export default function NotFound() {
     }
   }, [pathname]);
 
-  // 현재 페이지 데이터 및 템플릿 컴포넌트
-  type PageData = EventData['landing_pages'][0];
-  type TemplateComponentType = React.ComponentType<{ data: Record<string, string> }>;
-  
-  const { currentPageData, TemplateComponent, templateData } = useMemo<{
-    currentPageData: PageData | null;
-    TemplateComponent: TemplateComponentType | null;
-    templateData: Record<string, string>;
-  }>(() => {
-    if (!eventData) {
-      return { 
-        currentPageData: null, 
-        TemplateComponent: null, 
-        templateData: {}
-      };
-    }
-
-    const pageData = eventData.landing_pages.find(
-      (page) => page.page_number === currentPage
-    );
-
-    if (!pageData) {
-      return { 
-        currentPageData: null, 
-        TemplateComponent: null, 
-        templateData: {}
-      };
-    }
-
-    const Component = templateComponentMap[pageData.page_type]?.[pageData.template_type];
-    const data = convertPageContentsToTemplateData(
-      pageData.contents,
-      pageData.background_color
-    );
-
-    return {
-      currentPageData: pageData,
-      TemplateComponent: Component || null,
-      templateData: data,
-    };
-  }, [eventData, currentPage]);
+  // useMemo 제거 - 스크롤 기반으로 모든 페이지를 렌더링
 
   if (loading) {
     return (
@@ -179,47 +135,41 @@ export default function NotFound() {
     );
   }
 
-  // 페이지별 배경색
-  const backgroundColor = currentPageData?.background_color || eventData.background_color;
-
+  // 스크롤 기반 페이지 네비게이션
   return (
-    <div
-      className="min-h-screen flex items-center justify-center p-4"
-      style={{ backgroundColor }}
-    >
-      {/* 페이지 네비게이션 */}
-      {eventData.landing_pages.length > 1 && (
-        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 flex gap-2">
-          {eventData.landing_pages.map((page) => (
-            <button
-              key={page.id}
-              onClick={() => setCurrentPage(page.page_number)}
-              className={`w-2 h-2 rounded-full transition-colors ${
-                currentPage === page.page_number
-                  ? 'bg-white'
-                  : 'bg-white/50'
-              }`}
-              aria-label={`페이지 ${page.page_number}`}
-            />
-          ))}
-        </div>
-      )}
+    <div className="h-screen overflow-y-scroll snap-y snap-mandatory">
+      {eventData.landing_pages.map((page) => {
+        const pageData = eventData.landing_pages.find(
+          (p) => p.page_number === page.page_number
+        );
+        
+        if (!pageData) return null;
 
-      {/* 템플릿 렌더링 */}
-      {TemplateComponent && currentPageData ? (
-        <TemplateComponent data={templateData} />
-      ) : currentPageData ? (
-        <div className="text-center text-white">
-          <p>템플릿을 찾을 수 없습니다.</p>
-          <p className="text-sm text-white/60 mt-2">
-            {currentPageData.page_type} - {currentPageData.template_type}
-          </p>
-        </div>
-      ) : (
-        <div className="text-center text-white">
-          <p>페이지를 찾을 수 없습니다.</p>
-        </div>
-      )}
+        const Component = templateComponentMap[pageData.page_type]?.[pageData.template_type];
+        const data = convertPageContentsToTemplateData(
+          pageData.contents,
+          pageData.background_color
+        );
+
+        return (
+          <div
+            key={page.id}
+            className="h-screen snap-start snap-always flex items-center justify-center"
+            style={{ backgroundColor: pageData.background_color || eventData.background_color }}
+          >
+            {Component ? (
+              <Component data={data} />
+            ) : (
+              <div className="text-center text-white">
+                <p>템플릿을 찾을 수 없습니다.</p>
+                <p className="text-sm text-white/60 mt-2">
+                  {pageData.page_type} - {pageData.template_type}
+                </p>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
