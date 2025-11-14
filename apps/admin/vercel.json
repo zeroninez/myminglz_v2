@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "buildCommand": "cd ../.. && pnpm --filter admin build",
+  "outputDirectory": ".next",
+  "installCommand": "pnpm install",
+  "framework": "nextjs",
+  "devCommand": "cd ../.. && pnpm --filter admin dev"
+}
+
