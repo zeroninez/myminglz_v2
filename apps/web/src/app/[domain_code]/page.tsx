@@ -178,6 +178,15 @@ export default function EventLandingPage() {
           pageData.background_color
         );
 
+        // 디버깅: 어떤 컴포넌트가 선택되었는지 확인
+        console.log('선택된 컴포넌트:', {
+          componentName: Component?.name || '없음',
+          page_type: normalizedPageType,
+          template_type: normalizedTemplateType,
+          isType01: Component === templateComponentMap['표지']?.['유형1'],
+          isType02: Component === templateComponentMap['표지']?.['유형2'],
+        });
+
         // 템플릿을 찾지 못한 경우 상세 로그
         if (!Component) {
           console.error('템플릿을 찾을 수 없습니다:', {
