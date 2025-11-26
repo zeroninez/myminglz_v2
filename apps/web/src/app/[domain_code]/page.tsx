@@ -8,6 +8,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import CoverType01 from '@/components/templates/CoverType01';
+import CoverType02 from '@/components/templates/CoverType02';
 
 interface EventData {
   id: string;
@@ -62,6 +63,7 @@ function convertPageContentsToTemplateData(
 const templateComponentMap: Record<string, Record<string, React.ComponentType<{ data: Record<string, string> }>>> = {
   표지: {
     유형1: CoverType01,
+    유형2: CoverType02,
   },
   // TODO: 다른 템플릿 추가
 };
@@ -157,11 +159,37 @@ export default function EventLandingPage() {
         
         if (!pageData) return null;
 
-        const Component = templateComponentMap[pageData.page_type]?.[pageData.template_type];
+        // 디버깅: 실제 DB 값 확인
+        console.log('페이지 데이터:', {
+          page_number: pageData.page_number,
+          page_type: pageData.page_type,
+          template_type: pageData.template_type,
+          page_type_length: pageData.page_type?.length,
+          template_type_length: pageData.template_type?.length,
+        });
+
+        // page_type과 template_type 정규화 (공백 제거 및 trim)
+        const normalizedPageType = pageData.page_type?.trim() || '';
+        const normalizedTemplateType = pageData.template_type?.trim() || '';
+        
+        const Component = templateComponentMap[normalizedPageType]?.[normalizedTemplateType];
         const data = convertPageContentsToTemplateData(
           pageData.contents,
           pageData.background_color
         );
+
+        // 템플릿을 찾지 못한 경우 상세 로그
+        if (!Component) {
+          console.error('템플릿을 찾을 수 없습니다:', {
+            original_page_type: pageData.page_type,
+            original_template_type: pageData.template_type,
+            normalized_page_type: normalizedPageType,
+            normalized_template_type: normalizedTemplateType,
+            available_page_types: Object.keys(templateComponentMap),
+            available_templates: normalizedPageType ? Object.keys(templateComponentMap[normalizedPageType] || {}) : [],
+            template_map_keys: Object.keys(templateComponentMap['표지'] || {}),
+          });
+        }
 
         return (
           <div

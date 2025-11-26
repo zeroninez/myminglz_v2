@@ -4,7 +4,7 @@ import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import EventInfoSection from './components/EventInfoSection';
 import EventMissionSection from './components/EventMissionSection';
-import LandingPageSection from './components/LandingPageSection';
+import LandingPageSection, { type LandingPageSectionRef } from './components/LandingPageSection';
 import { convertPageBuilderToDB } from './utils/dataConverter';
 
 // 각 섹션의 데이터 타입
@@ -48,6 +48,7 @@ export default function CreatePage() {
     pageBackgroundColors: {},
     designValues: {},
   });
+  const landingPageSectionRef = useRef<LandingPageSectionRef>(null);
 
   const handleNext = async () => {
     if (currentStep < steps.length - 1) {
@@ -68,6 +69,18 @@ export default function CreatePage() {
         alert('이벤트 이름과 도메인 코드는 필수입니다.');
         setCurrentStep(0); // 첫 번째 스텝으로 이동
         return;
+      }
+
+      // 1.5. 랜딩 페이지의 대기 중인 이미지들을 Storage에 업로드
+      if (landingPageSectionRef.current) {
+        const uploadSuccess = await landingPageSectionRef.current.uploadPendingImages();
+        if (!uploadSuccess) {
+          alert('이미지 업로드에 실패했습니다. 다시 시도해주세요.');
+          setIsSubmitting(false);
+          return;
+        }
+        // 업로드 후 최신 데이터 다시 가져오기 위해 잠시 대기
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
 
       // 2. 랜딩 페이지 데이터 변환
@@ -180,6 +193,7 @@ export default function CreatePage() {
       )}
       {currentStep === 2 && (
         <LandingPageSection
+          ref={landingPageSectionRef}
           onDataChange={(data) => {
             landingPageDataRef.current = data;
           }}

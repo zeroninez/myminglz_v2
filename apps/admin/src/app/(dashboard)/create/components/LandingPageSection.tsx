@@ -1,127 +1,22 @@
 'use client';
 
-import { ChangeEvent, useEffect, useMemo, useState } from 'react';
+import { ChangeEvent, useEffect, useMemo, useState, useRef, useImperativeHandle, forwardRef } from 'react';
 import PhoneFrame from '../templates/components/PhoneFrame';
-import BlankTemplatePreview from '../templates/common/BlankTemplatePreview';
-import CoverType01Preview from '../templates/cover/Type01Preview';
+import {
+  type TemplateCategory,
+  type TemplateVariant,
+  type TemplateField,
+  templateCategories,
+  templateVariants,
+  templateComponentMap,
+  colorPalette,
+  templateFieldConfigs,
+  templateDefaultValues,
+  getDefaultSelectionForPage,
+} from '../config/templateConfig';
 
-const backgroundColors = ['#0F172A', '#111827', '#1E293B', '#F8FAFC'];
-
-type TemplateCategory = '표지' | '본문 1' | '본문 2' | '본문 3' | '갤러리' | '기타';
-type TemplateVariant = '유형1' | '유형2';
-
-const templateCategories: TemplateCategory[] = ['표지', '본문 1', '본문 2', '본문 3', '갤러리', '기타'];
-const templateVariants: TemplateVariant[] = ['유형1', '유형2'];
-
-interface TemplateField {
-  id: string;
-  label: string;
-  description?: string;
-  placeholder?: string;
-  type?: 'text' | 'textarea';
-  hasColor?: boolean;
-  defaultColor?: string;
-}
-
-type TemplateComponent = (props: { data: Record<string, string> }) => JSX.Element;
-
-const templateComponentMap: Record<TemplateCategory, Partial<Record<TemplateVariant, TemplateComponent>>> = {
-  표지: {
-    유형1: CoverType01Preview,
-  },
-  '본문 1': {
-    유형1: BlankTemplatePreview,
-  },
-  '본문 2': {
-    유형1: BlankTemplatePreview,
-  },
-  '본문 3': {
-    유형1: BlankTemplatePreview,
-  },
-  갤러리: {
-    유형1: BlankTemplatePreview,
-  },
-  기타: {
-    유형1: BlankTemplatePreview,
-  },
-};
-
-const colorPalette = [
-  '#73769A',
-  '#785B6F',
-  '#748197',
-  '#739C94',
-  '#85976F',
-  '#857361',
-  '#9F7374',
-];
-
-const templateFieldConfigs: Record<TemplateCategory, Partial<Record<TemplateVariant, TemplateField[]>>> = {
-  표지: {
-    유형1: [
-      { id: 'label', label: '라벨 영역', description: '상단 라벨 텍스트', placeholder: '내용 입력', type: 'text', hasColor: true, defaultColor: '#FFFFFF' },
-      { id: 'titlePrimary', label: '타이틀', description: '메인 타이틀', placeholder: '내용 입력', hasColor: true, defaultColor: '#FFFFFF' },
-      { id: 'titleSecondary', label: '타이틀 (2)', description: '두 번째 타이틀 줄', placeholder: '내용 입력', hasColor: true, defaultColor: '#FFFFFF' },
-      { id: 'subtitle', label: '서브타이틀', placeholder: '내용 입력', type: 'text', hasColor: true, defaultColor: '#D1D5DB' },
-      { id: 'body1', label: '본문 (1)', placeholder: '내용 입력', type: 'text', hasColor: true, defaultColor: '#E5E7EB' },
-      { id: 'body2', label: '본문 (2)', placeholder: '내용 입력', type: 'text', hasColor: true, defaultColor: '#E5E7EB' },
-      { id: 'body3', label: '본문 (3)', placeholder: '내용 입력', type: 'text', hasColor: true, defaultColor: '#E5E7EB' },
-    ],
-  },
-  '본문 1': {},
-  '본문 2': {},
-  '본문 3': {},
-  갤러리: {},
-  기타: {},
-};
-
-const templateDefaultValues: Record<TemplateCategory, Partial<Record<TemplateVariant, Record<string, string>>>> = {
-  표지: {
-    유형1: {
-      label: '라벨영역',
-      titlePrimary: '타이틀영역',
-      titleSecondary: '타이틀영역',
-      subtitle: '서브타이틀영역',
-      body1: '본문영역',
-      body2: '본문영역',
-      body3: '본문영역',
-    },
-  },
-  '본문 1': {
-    유형1: {
-      message: '본문 1 페이지가 준비 중입니다.',
-    },
-  },
-  '본문 2': {
-    유형1: {
-      message: '본문 2 페이지가 준비 중입니다.',
-    },
-  },
-  '본문 3': {
-    유형1: {
-      message: '본문 3 페이지가 준비 중입니다.',
-    },
-  },
-  갤러리: {
-    유형1: {
-      message: '갤러리 페이지가 준비 중입니다.',
-    },
-  },
-  기타: {
-    유형1: {
-      message: '콘텐츠가 곧 추가될 예정입니다.',
-    },
-  },
-};
-
-const getDefaultSelectionForPage = (
-  pageId: number
-): { pageType: TemplateCategory; templateType: TemplateVariant } => {
-  if (pageId === 1) {
-    return { pageType: '표지', templateType: '유형1' };
-  }
-  return { pageType: '기타', templateType: '유형1' };
-};
+// 기본 배경색
+const DEFAULT_BACKGROUND_COLOR = '#000000';
 
 interface LandingPageSectionProps {
   initialData?: {
@@ -136,7 +31,12 @@ interface LandingPageSectionProps {
   }) => void;
 }
 
-export default function LandingPageSection({ initialData, onDataChange }: LandingPageSectionProps) {
+export interface LandingPageSectionRef {
+  uploadPendingImages: () => Promise<boolean>;
+}
+
+const LandingPageSection = forwardRef<LandingPageSectionRef, LandingPageSectionProps>(
+  ({ initialData, onDataChange }, ref) => {
   const [activeTab, setActiveTab] = useState<'type' | 'design'>('type');
   const [selectedPage, setSelectedPage] = useState(1);
   
@@ -168,11 +68,14 @@ export default function LandingPageSection({ initialData, onDataChange }: Landin
     }
     return { 1: getDefaultSelectionForPage(1) };
   });
-  const [pageBackgroundColors, setPageBackgroundColors] = useState<Record<number, string>>(() => {
+  // 전역 배경색 상태 (모든 페이지에 동일하게 적용)
+  const [globalBackgroundColor, setGlobalBackgroundColor] = useState<string>(() => {
+    // initialData에서 첫 번째 페이지의 배경색을 가져오거나 기본값 사용
     if (initialData?.pageBackgroundColors) {
-      return initialData.pageBackgroundColors;
+      const firstColor = Object.values(initialData.pageBackgroundColors)[0];
+      return firstColor || DEFAULT_BACKGROUND_COLOR;
     }
-    return { 1: backgroundColors[0] };
+    return DEFAULT_BACKGROUND_COLOR;
   });
   const [designValues, setDesignValues] = useState<Record<number, Record<string, string>>>(() => {
     if (initialData?.designValues) {
@@ -180,6 +83,9 @@ export default function LandingPageSection({ initialData, onDataChange }: Landin
     }
     return { 1: templateDefaultValues['표지']?.['유형1'] ?? {} };
   });
+  
+  // 이미지 파일 객체 저장 (페이지 ID + 필드 ID 조합으로 키 생성)
+  const [pendingImageFiles, setPendingImageFiles] = useState<Record<string, File>>({});
 
   // initialData가 변경되면 상태 업데이트
   useEffect(() => {
@@ -198,8 +104,12 @@ export default function LandingPageSection({ initialData, onDataChange }: Landin
         setPageSelections(result);
       }
       
+      // 전역 배경색 초기화
       if (initialData.pageBackgroundColors) {
-        setPageBackgroundColors(initialData.pageBackgroundColors);
+        const firstColor = Object.values(initialData.pageBackgroundColors)[0];
+        if (firstColor) {
+          setGlobalBackgroundColor(firstColor);
+        }
       }
       
       if (initialData.designValues) {
@@ -216,13 +126,19 @@ export default function LandingPageSection({ initialData, onDataChange }: Landin
   // 데이터 변경 시 부모 컴포넌트에 알림
   useEffect(() => {
     if (onDataChange) {
+      // 모든 페이지에 전역 배경색 적용
+      const allPagesBackgroundColors: Record<number, string> = {};
+      pages.forEach((page) => {
+        allPagesBackgroundColors[page.id] = globalBackgroundColor;
+      });
+      
       onDataChange({
         pageSelections: pageSelections as Record<number, { pageType: string; templateType: string }>,
-        pageBackgroundColors,
+        pageBackgroundColors: allPagesBackgroundColors,
         designValues,
       });
     }
-  }, [pageSelections, pageBackgroundColors, designValues, onDataChange]);
+  }, [pageSelections, designValues, pages, globalBackgroundColor, onDataChange]);
 
   const selectedPageLabel = useMemo(() => {
     const found = pages.find((page) => page.id === selectedPage);
@@ -265,22 +181,13 @@ export default function LandingPageSection({ initialData, onDataChange }: Landin
     return { ...currentDefaultValues, ...existing };
   }, [designValues, selectedPage, currentDefaultValues]);
 
-  const currentBackgroundColor = pageBackgroundColors[selectedPage] ?? backgroundColors[0];
-
-  const savedBackgroundColors = useMemo(() => {
-    const colorMap = new Map<string, number[]>();
-    Object.entries(pageBackgroundColors).forEach(([pageId, color]) => {
-      const numericPageId = Number(pageId);
-      if (!colorMap.has(color)) {
-        colorMap.set(color, []);
-      }
-      colorMap.get(color)!.push(numericPageId);
-    });
-    return Array.from(colorMap.entries()).map(([color, pages]) => ({
-      color,
-      pages: pages.sort((a, b) => a - b),
-    }));
-  }, [pageBackgroundColors]);
+  // 전역 배경색 사용 (모든 페이지에 동일)
+  const currentBackgroundColor = globalBackgroundColor;
+  
+  // 전역 배경색 변경 핸들러 (모든 페이지에 동일하게 적용)
+  const handleBackgroundColorChange = (color: string) => {
+    setGlobalBackgroundColor(color);
+  };
 
   const isTemplateAvailable = !!SelectedTemplate && currentFields.length > 0;
 
@@ -328,12 +235,118 @@ export default function LandingPageSection({ initialData, onDataChange }: Landin
     }));
   };
 
-  const handleBackgroundColorChange = (color: string) => {
-    setPageBackgroundColors((prev) => ({
+  // 이미지 선택 시 로컬 미리보기만 표시
+  const handleImageSelect = (fieldId: string, file: File) => {
+    // 로컬 미리보기 URL 생성
+    const previewUrl = URL.createObjectURL(file);
+    
+    // File 객체 저장 (완료 시 업로드용)
+    const fileKey = `${selectedPage}-${fieldId}`;
+    setPendingImageFiles((prev) => ({
       ...prev,
-      [selectedPage]: color,
+      [fileKey]: file,
     }));
+    
+    // 로컬 URL로 미리보기 설정
+    handleDesignChange(fieldId, previewUrl);
   };
+
+  // 완료 시점에 모든 대기 중인 이미지를 Storage에 업로드
+  const uploadPendingImages = async (): Promise<boolean> => {
+    const uploadPromises: Promise<void>[] = [];
+    const updatedDesignValues = { ...designValues };
+    
+    for (const [fileKey, file] of Object.entries(pendingImageFiles)) {
+      const [pageId, fieldId] = fileKey.split('-');
+      const pageNum = Number(pageId);
+      
+      uploadPromises.push(
+        (async () => {
+          try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await fetch('/api/upload-image', {
+              method: 'POST',
+              body: formData,
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || !data.success || !data.url) {
+              throw new Error(data.error || '이미지 업로드 실패');
+            }
+
+            // 로컬 URL을 실제 Storage URL로 교체
+            const currentValue = updatedDesignValues[pageNum]?.[fieldId] || '';
+            if (currentValue.startsWith('blob:')) {
+              // 로컬 URL인 경우에만 교체
+              URL.revokeObjectURL(currentValue); // 메모리 해제
+              
+              if (!updatedDesignValues[pageNum]) {
+                updatedDesignValues[pageNum] = {};
+              }
+              updatedDesignValues[pageNum][fieldId] = data.url;
+            }
+          } catch (error: any) {
+            console.error(`이미지 업로드 실패 (${fileKey}):`, error);
+            throw error;
+          }
+        })()
+      );
+    }
+
+    try {
+      await Promise.all(uploadPromises);
+      
+      // 업로드된 URL로 designValues 업데이트
+      setDesignValues(updatedDesignValues);
+      
+      // 업로드 완료된 파일들 정리
+      setPendingImageFiles({});
+      
+      // 부모 컴포넌트에 업데이트된 데이터 전달
+      if (onDataChange) {
+        const allPagesBackgroundColors: Record<number, string> = {};
+        pages.forEach((page) => {
+          allPagesBackgroundColors[page.id] = globalBackgroundColor;
+        });
+        
+        onDataChange({
+          pageSelections: pageSelections as Record<number, { pageType: string; templateType: string }>,
+          pageBackgroundColors: allPagesBackgroundColors,
+          designValues: updatedDesignValues,
+        });
+      }
+      
+      return true;
+    } catch (error: any) {
+      console.error('이미지 업로드 중 오류:', error);
+      alert(`이미지 업로드 중 오류가 발생했습니다: ${error?.message || error}`);
+      return false;
+    }
+  };
+
+  // 배경색 변경 기능 제거됨 (전역 배경색 사용)
+
+  // 부모 컴포넌트에서 이미지 업로드 함수 호출할 수 있도록 노출
+  useImperativeHandle(ref, () => ({
+    uploadPendingImages,
+  }));
+
+  // 컴포넌트 언마운트 시 로컬 URL 정리 (메모리 누수 방지)
+  useEffect(() => {
+    return () => {
+      // 모든 로컬 URL 해제
+      Object.values(designValues).forEach((pageValues) => {
+        Object.values(pageValues).forEach((value) => {
+          if (typeof value === 'string' && value.startsWith('blob:')) {
+            URL.revokeObjectURL(value);
+          }
+        });
+      });
+    };
+  }, []);
 
   useEffect(() => {
     setPageSelections((prev) => {
@@ -347,17 +360,7 @@ export default function LandingPageSection({ initialData, onDataChange }: Landin
     });
   }, [selectedPage]);
 
-  useEffect(() => {
-    setPageBackgroundColors((prev) => {
-      if (prev[selectedPage]) {
-        return prev;
-      }
-      return {
-        ...prev,
-        [selectedPage]: backgroundColors[0],
-      };
-    });
-  }, [selectedPage]);
+  // 배경색 설정 useEffect 제거됨 (전역 배경색 사용)
 
   const handlePageTypeChange = (nextType: TemplateCategory) => {
     setPageSelections((prev) => {
@@ -396,10 +399,7 @@ export default function LandingPageSection({ initialData, onDataChange }: Landin
       ...prev,
       [newPageId]: getDefaultSelectionForPage(newPageId),
     }));
-    setPageBackgroundColors((prev) => ({
-      ...prev,
-      [newPageId]: backgroundColors[0],
-    }));
+    // 배경색 설정 제거됨 (전역 배경색 사용)
     setDesignValues((prev) => ({
       ...prev,
       [newPageId]: templateDefaultValues['기타']?.['유형1'] ?? {},
@@ -422,11 +422,7 @@ export default function LandingPageSection({ initialData, onDataChange }: Landin
       delete updated[pageId];
       return updated;
     });
-    setPageBackgroundColors((prev) => {
-      const updated = { ...prev };
-      delete updated[pageId];
-      return updated;
-    });
+    // 배경색 관리 제거됨 (전역 배경색 사용)
     setDesignValues((prev) => {
       const updated = { ...prev };
       delete updated[pageId];
@@ -478,6 +474,73 @@ export default function LandingPageSection({ initialData, onDataChange }: Landin
             }`,
           };
 
+          // 이미지 필드 처리
+          if (field.type === 'image') {
+            return (
+              <div key={field.id} className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+                {/* 상단: 라벨 + 업로드 버튼 + 토글 */}
+                <div className="mb-4 flex items-center gap-3">
+                  <label htmlFor={field.id} className="text-sm font-semibold text-gray-800">
+                    {field.label}
+                  </label>
+                  <div className="flex flex-1 items-center gap-3">
+                    <input
+                      id={`${field.id}-file`}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          handleImageSelect(field.id, file);
+                        }
+                      }}
+                    />
+                    <label
+                      htmlFor={`${field.id}-file`}
+                      className="cursor-pointer rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      이미지 선택
+                    </label>
+                    {value && (
+                      <span className="text-xs text-gray-500 truncate max-w-xs">
+                        이미지 업로드됨
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleVisibilityToggle(field.id, !isVisible)}
+                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                      isVisible ? 'bg-blue-600' : 'bg-gray-200'
+                    }`}
+                    role="switch"
+                    aria-checked={isVisible}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        isVisible ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+                {/* 이미지 미리보기 */}
+                {value && (
+                  <div className="mt-3">
+                    <img
+                      src={value}
+                      alt="미리보기"
+                      className="max-h-48 w-full rounded-lg border border-gray-200 object-contain"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          }
+
           return (
             <div key={field.id} className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
               {/* 상단: 라벨 + 입력 필드 + 토글 */}
@@ -507,17 +570,69 @@ export default function LandingPageSection({ initialData, onDataChange }: Landin
                 </button>
               </div>
 
-              {/* 하단: 선택됨 박스 + 색상 팔레트 */}
+              {/* 하단: 색상 선택 (color input + 현재 색상 + 복사 버튼 + 팔레트) */}
               {field.hasColor && (
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2">
-                    <span className="text-sm text-gray-700">선택됨</span>
-                    <div
-                      className="h-6 w-6 rounded border border-gray-300"
-                      style={{ backgroundColor: colorValue }}
+                <div className="flex flex-wrap items-center gap-3">
+                  <input
+                    type="color"
+                    value={colorValue}
+                    onChange={(event) => handleColorChange(field.id, event.target.value)}
+                    className="h-8 w-12 cursor-pointer rounded-md border border-gray-200 bg-white p-1 shadow-sm"
+                  />
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <span>현재 색상:</span>
+                    <input
+                      type="text"
+                      value={colorValue.toUpperCase()}
+                      onChange={(event) => {
+                        // 입력 중에는 모든 값을 허용 (자유롭게 편집 가능)
+                        const newValue = event.target.value;
+                        handleColorChange(field.id, newValue);
+                      }}
+                      onBlur={(event) => {
+                        // 포커스를 잃을 때 유효한 hex 색상으로 정규화
+                        const value = event.target.value.trim();
+                        const hexPattern = /^#?([0-9A-F]{3}|[0-9A-F]{6})$/i;
+                        
+                        if (value === '' || value === '#') {
+                          // 빈 값이면 기본값으로 복원
+                          handleColorChange(field.id, colorValue);
+                        } else if (hexPattern.test(value)) {
+                          // 유효한 hex 색상이면 정규화 (# 추가)
+                          const normalizedValue = value.startsWith('#') ? value : `#${value}`;
+                          handleColorChange(field.id, normalizedValue);
+                        } else {
+                          // 유효하지 않은 값이면 원래 값으로 복원
+                          handleColorChange(field.id, colorValue);
+                        }
+                      }}
+                      placeholder="#000000"
+                      className="w-20 rounded-md border border-gray-200 bg-white px-2 py-1 font-mono text-xs font-medium text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     />
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(colorValue.toUpperCase());
+                          alert('색상 코드가 클립보드에 복사되었습니다.');
+                        } catch (error) {
+                          alert('복사에 실패했습니다.');
+                        }
+                      }}
+                      className="text-gray-400 hover:text-gray-600"
+                      title="색상 코드 복사"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                        />
+                      </svg>
+                    </button>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     {colorPalette.map((color) => {
                       const isSelected = colorValue.toLowerCase() === color.toLowerCase();
                       return (
@@ -568,12 +683,13 @@ export default function LandingPageSection({ initialData, onDataChange }: Landin
           랜딩 페이지 디자인 (Page {selectedPage.toString().padStart(2, '0')})
         </h3>
         <p className="mt-2 text-sm text-gray-500">
-          템플릿 유형과 디자인을 선택하고, 배경 컬러와 콘텐츠를 조정합니다.
+          템플릿 유형과 디자인을 선택하고, 배경 색상과 콘텐츠를 조정합니다.
         </p>
       </div>
 
+      {/* 전역 배경색 선택 */}
       <div className="rounded-lg border border-gray-100 bg-gray-50 p-5">
-        <span className="text-xs font-semibold text-gray-700">랜딩 페이지 배경 색</span>
+        <span className="text-xs font-semibold text-gray-700">랜딩 페이지 배경 색 (모든 페이지에 적용)</span>
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <input
             type="color"
@@ -586,39 +702,6 @@ export default function LandingPageSection({ initialData, onDataChange }: Landin
             <span className="rounded-md border border-gray-200 bg-white px-2 py-1 font-medium text-gray-700">
               {currentBackgroundColor.toUpperCase()}
             </span>
-          </div>
-        </div>
-        <div className="mt-4 rounded-lg border border-dashed border-gray-200 bg-white/60 p-3">
-          <span className="text-xs font-semibold text-gray-600">사용 중인 배경색 빠르게 적용</span>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {savedBackgroundColors.map(({ color, pages: pageIds }) => {
-              const isSelected = currentBackgroundColor.toLowerCase() === color.toLowerCase();
-              const pageLabels = pageIds
-                .map((pageId) => pages.find((page) => page.id === pageId)?.label ?? `Page ${pageId}`)
-                .join(', ');
-              return (
-                <button
-                  key={color}
-                  onClick={() => handleBackgroundColorChange(color)}
-                  className={`flex items-center gap-3 rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
-                    isSelected
-                      ? 'border-blue-500 bg-blue-50 text-blue-600'
-                      : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-                  }`}
-                >
-                  <span
-                    className="h-4 w-4 rounded-full border border-gray-300"
-                    style={{ backgroundColor: color }}
-                  />
-                  <div className="flex flex-col items-start">
-                    <span className="font-semibold">{color.toUpperCase()}</span>
-                    <span className="text-[10px] text-gray-500">
-                      사용 페이지: {pageLabels || '없음'}
-                    </span>
-                  </div>
-                </button>
-              );
-            })}
           </div>
         </div>
       </div>
@@ -807,5 +890,9 @@ export default function LandingPageSection({ initialData, onDataChange }: Landin
       </div>
     </section>
   );
-}
+});
+
+LandingPageSection.displayName = 'LandingPageSection';
+
+export default LandingPageSection;
 
