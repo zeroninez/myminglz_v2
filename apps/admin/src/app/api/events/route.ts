@@ -214,7 +214,7 @@ export async function GET(request: Request) {
     // 사용자의 이벤트 목록 조회
     const { data: events, error: eventsError } = await supabase
       .from('events')
-      .select('id, name, domain_code, start_date, end_date, created_at, updated_at')
+      .select('id, name, domain_code, start_date, end_date, event_info_config, created_at, updated_at')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
