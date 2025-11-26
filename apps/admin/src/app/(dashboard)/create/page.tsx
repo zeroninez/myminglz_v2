@@ -72,19 +72,23 @@ export default function CreatePage() {
       }
 
       // 1.5. 랜딩 페이지의 대기 중인 이미지들을 Storage에 업로드
+      let finalLandingPageData = landingPageDataRef.current;
       if (landingPageSectionRef.current) {
-        const uploadSuccess = await landingPageSectionRef.current.uploadPendingImages();
-        if (!uploadSuccess) {
+        const uploadResult = await landingPageSectionRef.current.uploadPendingImages();
+        if (!uploadResult.success) {
           alert('이미지 업로드에 실패했습니다. 다시 시도해주세요.');
           setIsSubmitting(false);
           return;
         }
-        // 업로드 후 최신 데이터 다시 가져오기 위해 잠시 대기
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // 업로드된 최신 데이터 사용
+        if (uploadResult.updatedData) {
+          finalLandingPageData = uploadResult.updatedData;
+          landingPageDataRef.current = uploadResult.updatedData;
+        }
       }
 
-      // 2. 랜딩 페이지 데이터 변환
-      const landingPagesData = convertPageBuilderToDB(landingPageDataRef.current);
+      // 2. 랜딩 페이지 데이터 변환 (최신 업로드된 이미지 URL 포함)
+      const landingPagesData = convertPageBuilderToDB(finalLandingPageData);
 
       // 3. API 호출
       const response = await fetch('/api/events', {

@@ -32,7 +32,11 @@ interface LandingPageSectionProps {
 }
 
 export interface LandingPageSectionRef {
-  uploadPendingImages: () => Promise<boolean>;
+  uploadPendingImages: () => Promise<{ success: boolean; updatedData?: {
+    pageSelections: Record<number, { pageType: string; templateType: string }>;
+    pageBackgroundColors: Record<number, string>;
+    designValues: Record<number, Record<string, string>>;
+  } }>;
 }
 
 const LandingPageSection = forwardRef<LandingPageSectionRef, LandingPageSectionProps>(
@@ -252,7 +256,7 @@ const LandingPageSection = forwardRef<LandingPageSectionRef, LandingPageSectionP
   };
 
   // 완료 시점에 모든 대기 중인 이미지를 Storage에 업로드
-  const uploadPendingImages = async (): Promise<boolean> => {
+  const uploadPendingImages = async (): Promise<{ success: boolean; updatedData?: any }> => {
     const uploadPromises: Promise<void>[] = [];
     const updatedDesignValues = { ...designValues };
     
@@ -305,25 +309,28 @@ const LandingPageSection = forwardRef<LandingPageSectionRef, LandingPageSectionP
       // 업로드 완료된 파일들 정리
       setPendingImageFiles({});
       
+      // 업데이트된 전체 데이터 구성
+      const allPagesBackgroundColors: Record<number, string> = {};
+      pages.forEach((page) => {
+        allPagesBackgroundColors[page.id] = globalBackgroundColor;
+      });
+      
+      const updatedData = {
+        pageSelections: pageSelections as Record<number, { pageType: string; templateType: string }>,
+        pageBackgroundColors: allPagesBackgroundColors,
+        designValues: updatedDesignValues,
+      };
+      
       // 부모 컴포넌트에 업데이트된 데이터 전달
       if (onDataChange) {
-        const allPagesBackgroundColors: Record<number, string> = {};
-        pages.forEach((page) => {
-          allPagesBackgroundColors[page.id] = globalBackgroundColor;
-        });
-        
-        onDataChange({
-          pageSelections: pageSelections as Record<number, { pageType: string; templateType: string }>,
-          pageBackgroundColors: allPagesBackgroundColors,
-          designValues: updatedDesignValues,
-        });
+        onDataChange(updatedData);
       }
       
-      return true;
+      return { success: true, updatedData };
     } catch (error: any) {
       console.error('이미지 업로드 중 오류:', error);
       alert(`이미지 업로드 중 오류가 발생했습니다: ${error?.message || error}`);
-      return false;
+      return { success: false };
     }
   };
 
