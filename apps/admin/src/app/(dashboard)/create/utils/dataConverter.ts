@@ -2,6 +2,8 @@
  * 페이지 빌더 데이터를 DB 구조로 변환하는 유틸리티
  */
 
+import { templateFieldConfigs } from '../config/templateConfig';
+
 // LandingPageSection의 state 타입
 export interface PageBuilderData {
   pageSelections: Record<number, { pageType: string; templateType: string }>;
@@ -68,11 +70,20 @@ export function convertPageBuilderToDB(
     // 콘텐츠 추출
     const contents: LandingPageData['contents'] = [];
     
+    // 템플릿 필드 설정 가져오기 (이미지 필드 등의 타입 확인용)
+    const templateFields = templateFieldConfigs[selection.pageType]?.[selection.templateType] || [];
+    const imageFields = new Set(templateFields.filter(f => f.type === 'image').map(f => f.id));
+    
     // designValues에서 필드별로 추출
     // field_id와 field_value, field_color, is_visible을 추출
     const fieldIds = new Set<string>();
     
-    // 모든 키를 순회하면서 필드 ID 추출
+    // 템플릿에 정의된 필드 먼저 추가 (값이 비어있어도 포함)
+    templateFields.forEach(field => {
+      fieldIds.add(field.id);
+    });
+    
+    // designValues에서 추가로 필드 ID 추출
     Object.keys(designValues).forEach((key) => {
       // Color나 Visible 접미사 제거
       const baseFieldId = key.replace(/Color$/, '').replace(/Visible$/, '');
@@ -87,8 +98,10 @@ export function convertPageBuilderToDB(
       const color = designValues[`${fieldId}Color`] || null;
       const visible = designValues[`${fieldId}Visible`] !== 'false';
 
-      // 빈 값이 아닌 경우만 추가
-      if (value !== null && value !== undefined && value !== '') {
+      // 이미지 필드는 값이 비어있어도 저장 (is_visible로 표시 여부 제어)
+      // 다른 필드는 빈 값이 아닌 경우만 추가
+      const isImageField = imageFields.has(fieldId);
+      if (isImageField || (value !== null && value !== undefined && value !== '')) {
         contents.push({
           field_id: fieldId,
           field_value: value,
