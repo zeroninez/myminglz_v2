@@ -39,12 +39,15 @@ export default function CoverType01({ data }: CoverType01Props) {
   const isBody3Visible = body3Visible !== 'false';
   const isImageVisible = imageUrlVisible !== 'false';
 
+  // blob URL은 로컬 미리보기용이므로 실제 배포에서는 사용하지 않음
+  const isValidImageUrl = imageUrl && !imageUrl.startsWith('blob:');
+
   return (
     <div 
       className="relative flex h-full w-full flex-col overflow-hidden"
       style={{ 
         backgroundColor,
-        ...(isImageVisible && imageUrl ? {
+        ...(isImageVisible && isValidImageUrl ? {
           backgroundImage: `url(${imageUrl})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',

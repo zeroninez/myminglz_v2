@@ -135,7 +135,7 @@ export default function CoverType02({ data }: CoverType02Props) {
           backgroundColor: backgroundColor 
         }}
       >
-        {isImageVisible && imageUrl ? (
+        {isImageVisible && imageUrl && !imageUrl.startsWith('blob:') ? (
           <img
             src={imageUrl}
             alt=""

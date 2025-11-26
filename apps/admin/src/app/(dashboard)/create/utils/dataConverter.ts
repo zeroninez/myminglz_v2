@@ -71,15 +71,15 @@ export function convertPageBuilderToDB(
     const contents: LandingPageData['contents'] = [];
     
     // 템플릿 필드 설정 가져오기 (이미지 필드 등의 타입 확인용)
-    const templateFields = templateFieldConfigs[selection.pageType]?.[selection.templateType] || [];
-    const imageFields = new Set(templateFields.filter(f => f.type === 'image').map(f => f.id));
+    const templateFields = (templateFieldConfigs as any)[selection.pageType]?.[selection.templateType] || [];
+    const imageFields = new Set(templateFields.filter((f: any) => f.type === 'image').map((f: any) => f.id));
     
     // designValues에서 필드별로 추출
     // field_id와 field_value, field_color, is_visible을 추출
     const fieldIds = new Set<string>();
     
     // 템플릿에 정의된 필드 먼저 추가 (값이 비어있어도 포함)
-    templateFields.forEach(field => {
+    templateFields.forEach((field: { id: string }) => {
       fieldIds.add(field.id);
     });
     
@@ -94,9 +94,16 @@ export function convertPageBuilderToDB(
 
     // 각 필드에 대해 콘텐츠 생성
     fieldIds.forEach((fieldId) => {
-      const value = designValues[fieldId] || null;
+      let value = designValues[fieldId] || null;
       const color = designValues[`${fieldId}Color`] || null;
       const visible = designValues[`${fieldId}Visible`] !== 'false';
+
+      // blob URL은 DB에 저장하지 않음 (로컬 미리보기용이므로)
+      // 이미지 필드에서 blob URL인 경우 null로 처리
+      if (value && typeof value === 'string' && value.startsWith('blob:')) {
+        console.warn(`Blob URL detected for ${fieldId}, skipping save:`, value);
+        value = null;
+      }
 
       // 이미지 필드는 값이 비어있어도 저장 (is_visible로 표시 여부 제어)
       // 다른 필드는 빈 값이 아닌 경우만 추가
