@@ -173,16 +173,17 @@ export default function EventLandingPage() {
       const stores = eventData.event_info_config?.stores || [];
       
       // store 정보 확인 및 slug 결정
-      // event_info_config의 store.id는 임시 ID일 수 있으므로,
-      // domain_code를 기본 location slug로 사용
-      // 만약 stores에 실제 DB slug가 있다면 그것을 우선 사용
-      const storeSlug = stores[0]?.slug || domainCode || 'default';
+      // event_info_config.stores의 id는 임시 ID (예: "store-1764650143294")
+      // 실제 DB의 location slug와 다르므로 domain_code를 location slug로 사용
+      // domain_code가 실제 DB locations 테이블의 slug로 사용됩니다
+      const storeSlug = domainCode || 'default';
       
       console.log('🔍 Store 정보:', {
         stores,
-        storeSlug,
+        storeSlug: domainCode,
         domainCode,
         couponUsage,
+        note: 'domain_code를 location slug로 사용',
       });
 
       if (couponUsage === 'immediate') {
