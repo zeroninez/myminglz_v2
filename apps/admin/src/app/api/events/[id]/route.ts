@@ -10,6 +10,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
 // Store name을 slug로 변환하는 함수
+// 각 매장별 고유 slug 생성 (쿠폰 사용 추적을 위해)
 function generateSlugFromName(name: string, domainCode: string, index: number): string {
   // 한글, 영문, 숫자, 공백을 허용하고 나머지는 제거
   const cleaned = name
@@ -20,16 +21,12 @@ function generateSlugFromName(name: string, domainCode: string, index: number): 
     .replace(/-+/g, '-') // 연속된 하이픈을 하나로
     .replace(/^-|-$/g, ''); // 앞뒤 하이픈 제거
   
-  // 한글이 포함된 경우 영문 변환 대신 domainCode와 index 사용
-  if (/[가-힣]/.test(cleaned)) {
+  // slug가 비어있거나 한글이면 domain_code + index 사용
+  if (!cleaned || /[가-힣]/.test(cleaned)) {
     return `${domainCode}-store-${index + 1}`;
   }
   
-  // slug가 비어있으면 domainCode와 index 사용
-  if (!cleaned) {
-    return `${domainCode}-store-${index + 1}`;
-  }
-  
+  // domain_code-store-name 형식으로 생성
   return `${domainCode}-${cleaned}`;
 }
 

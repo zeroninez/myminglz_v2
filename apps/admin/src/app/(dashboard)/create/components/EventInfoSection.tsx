@@ -10,6 +10,24 @@ interface Store {
   usagePeriod: string;
   useEventPeriod: boolean; // 이벤트 기간 사용 여부
   qrCodeUrl: string | null;
+  slug?: string; // store slug 추가
+}
+
+// Store name을 slug로 변환하는 함수 (API와 동일한 로직)
+function generateStoreSlug(name: string, domainCode: string, index: number): string {
+  const cleaned = name
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-가-힣]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+  
+  if (!cleaned || /[가-힣]/.test(cleaned)) {
+    return `${domainCode}-store-${index + 1}`;
+  }
+  
+  return `${domainCode}-${cleaned}`;
 }
 
 interface EventInfoSectionProps {
@@ -149,7 +167,10 @@ export default function EventInfoSection({ initialData, onDataChange }: EventInf
         
         try {
           setStoreQrLoading((prev) => ({ ...prev, [store.id]: true }));
-          const verifyUrl = `${baseUrl}/${domainCode.trim()}/verify/${store.id}`;
+          // store slug 생성 (쿠폰 사용 추적을 위해)
+          const storeIndex = stores.findIndex(s => s.id === store.id);
+          const storeSlug = store.slug || generateStoreSlug(store.name, domainCode.trim(), storeIndex >= 0 ? storeIndex : 0);
+          const verifyUrl = `${baseUrl}/${domainCode.trim()}/verify/${storeSlug}`;
           
           const qrImageUrl = await QRCodeService.generateQRCodeURL(verifyUrl, {
             width: 200,
@@ -161,7 +182,7 @@ export default function EventInfoSection({ initialData, onDataChange }: EventInf
           });
           
           setStores((prev) =>
-            prev.map((s) => (s.id === store.id ? { ...s, qrCodeUrl: qrImageUrl } : s))
+            prev.map((s) => (s.id === store.id ? { ...s, qrCodeUrl: qrImageUrl, slug: storeSlug } : s))
           );
         } catch (error) {
           console.error(`사용처 ${store.name} QR 코드 생성 실패:`, error);

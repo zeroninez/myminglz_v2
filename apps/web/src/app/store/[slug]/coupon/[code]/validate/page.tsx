@@ -19,24 +19,28 @@ export default function ValidatePage() {
   const [isConfirming, setIsConfirming] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
-  const handleScan = async (storeSlug: string, qrImage: string) => {
+  const handleScan = async (scannedStoreSlug: string, qrImage: string) => {
     if (isValidating) return;
 
-    console.log('🔍 QR 스캔 완료:', { storeSlug, code });
+    console.log('🔍 QR 스캔 완료:', { 
+      scannedStoreSlug, 
+      code 
+    });
+
     setIsValidating(true);
     setQrImageUrl(qrImage); // QR 이미지 저장
     setValidatedStoreSlug(null); // 이전 검증 결과 초기화
     
     try {
-      // 스캔한 매장에서 쿠폰 코드 검증
-      console.log('✅ 쿠폰 검증 시작:', { code, storeSlug });
-      const result = await CouponService.validateCodeAtStore(code, storeSlug);
+      // 스캔한 매장에서 쿠폰 코드 검증 (store slug로 추적)
+      console.log('✅ 쿠폰 검증 시작:', { code, storeSlug: scannedStoreSlug });
+      const result = await CouponService.validateCodeAtStore(code, scannedStoreSlug);
       console.log('✅ 검증 결과:', result);
       
       if (result.success && result.isValid && !result.isUsed) {
         // 검증 성공 - 직원 확인 버튼 표시를 위해 storeSlug 저장
         console.log('✅ 검증 성공 - 직원 확인 대기');
-        setValidatedStoreSlug(storeSlug);
+        setValidatedStoreSlug(scannedStoreSlug);
       } else {
         const errorMsg = result.message || '유효하지 않은 쿠폰입니다.';
         console.log('❌ 검증 실패:', errorMsg);
