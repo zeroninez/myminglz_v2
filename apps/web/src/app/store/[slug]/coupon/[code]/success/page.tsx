@@ -114,7 +114,9 @@ export default function SuccessPage() {
           className="w-full max-w-[343px] h-[56px] bg-gray-900 text-white text-[17px] font-semibold rounded-[16px] shadow-lg active:bg-gray-800 transition-colors"
           onClick={() => {
             if (couponData) {
-              shareCoupon(couponData.code);
+              // URL에서 store slug 가져오기 (params.slug)
+              const storeSlug = params?.slug as string;
+              shareCoupon(couponData.code, storeSlug);
             }
           }}
         >

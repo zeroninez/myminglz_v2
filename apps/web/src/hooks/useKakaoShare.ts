@@ -9,7 +9,7 @@ interface ShareKakaoParams {
 }
 
 export const useKakaoShare = () => {
-  const shareCoupon = async (couponCode: string) => {
+  const shareCoupon = async (couponCode: string, storeSlug?: string) => {
     // 쿠폰 데이터 조회
     const result = await CouponService.getCouponByCode(couponCode);
     const locationName = result.data?.location?.name || '매장';
@@ -26,8 +26,12 @@ export const useKakaoShare = () => {
       return;
     }
 
-    const domain = process.env.NEXT_PUBLIC_DOMAIN || window.location.origin;
-    const shareUrl = `${domain}/store/test/coupon/${couponCode}/use`;
+    const domain = process.env.NEXT_PUBLIC_WEB_URL || process.env.NEXT_PUBLIC_DOMAIN || window.location.origin;
+    // store slug가 있으면 사용, 없으면 쿠폰의 location 정보에서 추출
+    const finalStoreSlug = storeSlug || result.data?.location?.slug || 'default';
+    const shareUrl = `${domain}/store/${finalStoreSlug}/coupon/${couponCode}/use`;
+    
+    console.log('🔗 카카오톡 공유 URL:', shareUrl);
 
     window.Kakao.Share.sendDefault({
       objectType: 'feed',
