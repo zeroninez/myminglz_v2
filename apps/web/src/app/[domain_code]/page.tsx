@@ -237,8 +237,8 @@ export default function EventLandingPage() {
         
         const finalCode = result.code;
         console.log('Redirecting to success page with code:', finalCode);
-        // store slug로 성공 페이지 이동
-        router.push(`/store/${storeSlug}/coupon/${finalCode}/success`);
+        // location slug (domain_code)로 성공 페이지 이동 (여러 사용처 중 어디서 사용할지는 QR 코드로 확인)
+        router.push(`/store/${locationSlug}/coupon/${finalCode}/success`);
       }
     } catch (error) {
       console.error('참여하기 에러:', error);

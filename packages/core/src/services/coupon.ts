@@ -88,29 +88,39 @@ export class CouponService {
   static async getStoreBySlug(slug: string): Promise<Store | null> {
     try {
       const supabase = this.checkInitialized();
-      console.log('Searching for store with slug:', slug);
+      console.log('🔍 Searching for store with slug:', slug);
       
+      // slug 형식 확인: {domain_code}-{store_name} (예: 23424324-3333)
+      if (!slug || typeof slug !== 'string') {
+        console.error('❌ Invalid slug format:', slug);
+        return null;
+      }
+
       const { data, error } = await supabase
         .from('stores')
         .select('*')
-        .eq('slug', slug)
+        .eq('slug', slug.trim())
         .eq('is_active', true)
         .single();
 
       if (error) {
-        console.error('Store query error:', error);
+        console.error('❌ Store query error:', error);
+        // 에러가 PGRST116 (No rows found)인 경우도 로그 출력
+        if (error.code === 'PGRST116') {
+          console.log('⚠️ Store not found in database for slug:', slug);
+        }
         return null;
       }
       
       if (!data) {
-        console.log('No store found with slug:', slug);
+        console.log('⚠️ No store found with slug:', slug);
         return null;
       }
 
-      console.log('Store found:', data);
+      console.log('✅ Store found:', { id: data.id, name: data.name, slug: data.slug });
       return data;
     } catch (error) {
-      console.error('가게 조회 오류:', error);
+      console.error('❌ 가게 조회 오류:', error);
       return null;
     }
   }
@@ -261,15 +271,21 @@ export class CouponService {
    */
   static async validateCodeAtStore(code: string, storeSlug: string): Promise<ValidateCodeResult> {
     try {
-      const store = await this.getStoreBySlug(storeSlug);
+      console.log('🔍 Validating coupon at store:', { code, storeSlug });
+      
+      // store slug로 store 조회 ({domain_code}-{store_name} 형식)
+      const store = await this.getStoreBySlug(storeSlug.trim());
       if (!store) {
+        console.error('❌ Store not found for slug:', storeSlug);
         const result: ValidateCodeResult = {
           success: false,
           isValid: false,
-          error: '유효하지 않은 가게입니다.',
+          error: `유효하지 않은 가게입니다. (slug: ${storeSlug})`,
         };
         return result;
       }
+      
+      console.log('✅ Store found for validation:', { storeId: store.id, storeName: store.name, locationId: store.location_id });
 
       const upperCode = code.toUpperCase().trim();
       if (!upperCode) {

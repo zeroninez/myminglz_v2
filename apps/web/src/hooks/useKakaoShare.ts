@@ -27,9 +27,9 @@ export const useKakaoShare = () => {
     }
 
     const domain = process.env.NEXT_PUBLIC_WEB_URL || process.env.NEXT_PUBLIC_DOMAIN || window.location.origin;
-    // store slug가 있으면 사용, 없으면 쿠폰의 location 정보에서 추출
-    const finalStoreSlug = storeSlug || result.data?.location?.slug || 'default';
-    const shareUrl = `${domain}/store/${finalStoreSlug}/coupon/${couponCode}/use`;
+    // location slug (domain_code)만 사용 (여러 사용처 중 어디서 사용할지는 QR 코드로 확인)
+    const locationSlug = result.data?.location?.slug || storeSlug || 'default';
+    const shareUrl = `${domain}/store/${locationSlug}/coupon/${couponCode}/use`;
     
     console.log('🔗 카카오톡 공유 URL:', shareUrl);
 

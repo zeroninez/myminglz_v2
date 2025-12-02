@@ -170,7 +170,8 @@ export default function EventInfoSection({ initialData, onDataChange }: EventInf
           // store slug 생성 (쿠폰 사용 추적을 위해)
           const storeIndex = stores.findIndex(s => s.id === store.id);
           const storeSlug = store.slug || generateStoreSlug(store.name, domainCode.trim(), storeIndex >= 0 ? storeIndex : 0);
-          const verifyUrl = `${baseUrl}/${domainCode.trim()}/verify/${storeSlug}`;
+          // 간단한 형식: /verify/{store_slug}
+          const verifyUrl = `${baseUrl}/verify/${storeSlug}`;
           
           const qrImageUrl = await QRCodeService.generateQRCodeURL(verifyUrl, {
             width: 200,

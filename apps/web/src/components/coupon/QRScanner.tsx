@@ -111,12 +111,11 @@ export const QRScanner = ({ onScanSuccess, onScanError, isScanning }: QRScannerP
             let storeSlug: string | null = null;
             const qrData = code.data.trim();
             
-            // 1. 이벤트 검증 URL 형식 체크: https://.../{domain_code}/verify/{store_slug}
-            // store slug 추출 (쿠폰 사용 추적을 위해)
-            const eventVerifyMatch = qrData.match(/\/([^\/]+)\/verify\/([^\/]+)$/i);
-            if (eventVerifyMatch) {
-              storeSlug = eventVerifyMatch[2]; // store_slug 추출 (두 번째 그룹)
-              console.log('✅ 이벤트 검증 URL에서 추출된 store_slug:', storeSlug);
+            // 1. 간단한 형식 체크: /verify/{store_slug} 또는 https://.../verify/{store_slug}
+            const verifyMatch = qrData.match(/\/verify\/([a-z0-9-_]+)$/i);
+            if (verifyMatch) {
+              storeSlug = verifyMatch[1]; // store_slug 추출
+              console.log('✅ /verify/ URL에서 추출된 store_slug:', storeSlug);
             } else {
               // 2. 기존 쿠폰 URL 형식 체크: https://myminglz-validator.vercel.app/{store_slug}
               const urlMatch = qrData.match(/^https?:\/\/[^\/]+\/([a-z0-9-_]+)$/i);
