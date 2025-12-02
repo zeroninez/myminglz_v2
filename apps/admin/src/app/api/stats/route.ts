@@ -101,29 +101,145 @@ export async function GET(request: Request) {
       );
     }
 
-    // TODO: 실제 통계 데이터는 추적 테이블이 추가되면 구현
-    // 현재는 이벤트 정보만 반환하고, 통계는 0으로 초기화
+    // 이벤트별 통계 데이터 계산
+    const eventsWithStats = await Promise.all(
+      (events || []).map(async (event) => {
+        // event의 domain_code를 location slug로 사용하여 location 찾기
+        const { data: location } = await supabase
+          .from('locations')
+          .select('id')
+          .eq('slug', event.domain_code)
+          .single();
+
+        // 유입 수 조회 (페이지 방문 로그)
+        let visitQuery = supabase
+          .from('page_visits')
+          .select('visited_at')
+          .eq('event_id', event.id);
+
+        if (dateRange) {
+          visitQuery = visitQuery
+            .gte('visited_at', dateRange.start.toISOString())
+            .lte('visited_at', dateRange.end.toISOString());
+        }
+
+        const { data: visits, error: visitsError } = await visitQuery;
+
+        if (visitsError) {
+          console.error('방문 로그 조회 오류:', visitsError);
+        }
+
+        const visitList = visits || [];
+        const totalInflow = visitList.length;
+
+        if (!location) {
+          // 시간대별 유입 수 집계
+          const hourlyInflow = Array.from({ length: 24 }, (_, i) => {
+            const hour = i;
+            const hourStart = hour;
+            const hourEnd = hour === 23 ? 24 : hour + 1;
+
+            const inflow = visitList.filter((v) => {
+              const visitDate = new Date(v.visited_at);
+              const visitHour = visitDate.getHours();
+              return visitHour >= hourStart && visitHour < hourEnd;
+            }).length;
+
+            return {
+              hour: `${hour}시`,
+              inflow,
+              issuance: 0,
+              usage: 0,
+            };
+          });
+
+          return {
+            id: event.id,
+            name: event.name,
+            domainCode: event.domain_code,
+            conversionRate: 0,
+            totalInflow,
+            couponIssued: 0,
+            couponUsed: 0,
+            hourlyData: hourlyInflow,
+          };
+        }
+
+        // 쿠폰 발급 수 조회 (날짜 범위 필터 적용)
+        let couponQuery = supabase
+          .from('coupons')
+          .select('id, created_at, is_used, used_at', { count: 'exact' })
+          .eq('location_id', location.id);
+
+        if (dateRange) {
+          couponQuery = couponQuery
+            .gte('created_at', dateRange.start.toISOString())
+            .lte('created_at', dateRange.end.toISOString());
+        }
+
+        const { data: coupons, error: couponsError } = await couponQuery;
+
+        if (couponsError) {
+          console.error('쿠폰 조회 오류:', couponsError);
+        }
+
+        const couponList = coupons || [];
+        const couponIssued = couponList.length;
+        const couponUsed = couponList.filter((c) => c.is_used).length;
+        const conversionRate = couponIssued > 0 ? Math.round((couponUsed / couponIssued) * 100 * 100) / 100 : 0;
+
+        // 시간대별 데이터 집계 (0시 ~ 23시, 24시간)
+        const hourlyData = Array.from({ length: 24 }, (_, i) => {
+          const hour = i;
+          const hourStart = hour;
+          const hourEnd = hour === 23 ? 24 : hour + 1;
+
+          // 해당 시간대의 유입 수
+          const inflow = visitList.filter((v) => {
+            const visitDate = new Date(v.visited_at);
+            const visitHour = visitDate.getHours();
+            return visitHour >= hourStart && visitHour < hourEnd;
+          }).length;
+
+          // 해당 시간대의 발급 수
+          const issuance = couponList.filter((c) => {
+            const couponDate = new Date(c.created_at);
+            const couponHour = couponDate.getHours();
+            return couponHour >= hourStart && couponHour < hourEnd;
+          }).length;
+
+          // 해당 시간대의 사용 수
+          const usage = couponList.filter((c) => {
+            if (!c.is_used || !c.used_at) return false;
+            const usedDate = new Date(c.used_at);
+            const usedHour = usedDate.getHours();
+            return usedHour >= hourStart && usedHour < hourEnd;
+          }).length;
+
+          return {
+            hour: `${hour}시`,
+            inflow,
+            issuance,
+            usage,
+          };
+        });
+
+        return {
+          id: event.id,
+          name: event.name,
+          domainCode: event.domain_code,
+          conversionRate,
+          totalInflow,
+          couponIssued,
+          couponUsed,
+          hourlyData,
+        };
+      })
+    );
+
     const stats = {
       totalEvents: events?.length || 0,
-      events: (events || []).map((event) => ({
-        id: event.id,
-        name: event.name,
-        domainCode: event.domain_code,
-        // 실제 통계 데이터는 추적 테이블이 추가되면 계산
-        conversionRate: 0, // 전환율 (%)
-        totalInflow: 0, // 총 유입 수
-        couponIssued: 0, // 쿠폰 발급 수
-        couponUsed: 0, // 쿠폰 사용 수
-        hourlyData: Array.from({ length: 12 }, (_, i) => {
-          const hour = 10 + i; // 10am ~ 9pm
-          return {
-            hour: hour < 12 ? `${hour}am` : hour === 12 ? '12pm' : `${hour - 12}pm`,
-            inflow: 0,
-            issuance: 0,
-            usage: 0,
-          };
-        }),
-      })),
+      events: eventsWithStats,
       bestEvent: null as {
         id: string;
         name: string;
@@ -142,26 +258,38 @@ export async function GET(request: Request) {
       } | null,
     };
 
-    // 최고/최저 성과 이벤트 계산 (실제 데이터가 있으면)
+    // 최고/최저 성과 이벤트 계산
     if (stats.events.length > 0) {
-      // 임시로 첫 번째 이벤트를 최고/최저로 설정 (실제 데이터 연동 시 수정)
-      const firstEvent = stats.events[0];
-      stats.bestEvent = {
-        id: firstEvent.id,
-        name: firstEvent.name,
-        conversionRate: firstEvent.conversionRate,
-        totalInflow: firstEvent.totalInflow,
-        couponIssued: firstEvent.couponIssued,
-        couponUsed: firstEvent.couponUsed,
-      };
-      stats.worstEvent = {
-        id: firstEvent.id,
-        name: firstEvent.name,
-        conversionRate: firstEvent.conversionRate,
-        totalInflow: firstEvent.totalInflow,
-        couponIssued: firstEvent.couponIssued,
-        couponUsed: firstEvent.couponUsed,
-      };
+      // 전환율 기준으로 정렬
+      const sortedByConversion = [...stats.events].sort(
+        (a, b) => b.conversionRate - a.conversionRate
+      );
+
+      const bestEventData = sortedByConversion[0];
+      if (bestEventData && bestEventData.conversionRate > 0) {
+        stats.bestEvent = {
+          id: bestEventData.id,
+          name: bestEventData.name,
+          conversionRate: bestEventData.conversionRate,
+          totalInflow: bestEventData.totalInflow,
+          couponIssued: bestEventData.couponIssued,
+          couponUsed: bestEventData.couponUsed,
+        };
+      }
+
+      // 발급 수가 있으면서 전환율이 낮은 이벤트 찾기
+      const eventsWithIssued = sortedByConversion.filter((e) => e.couponIssued > 0);
+      if (eventsWithIssued.length > 0) {
+        const worstEventData = eventsWithIssued[eventsWithIssued.length - 1];
+        stats.worstEvent = {
+          id: worstEventData.id,
+          name: worstEventData.name,
+          conversionRate: worstEventData.conversionRate,
+          totalInflow: worstEventData.totalInflow,
+          couponIssued: worstEventData.couponIssued,
+          couponUsed: worstEventData.couponUsed,
+        };
+      }
     }
 
     return NextResponse.json({

@@ -386,23 +386,25 @@ export default function StatsPage() {
 
         {/* 바 차트 */}
         {chartData.length > 0 ? (
-          <div className="flex items-end justify-between gap-2 border-t border-gray-200 pt-4">
-            {chartData.map((data, index) => {
-              const value = chartType === 'inflow' ? data.inflow : chartType === 'issuance' ? data.issuance : data.usage;
-              const height = maxValue > 0 ? (value / maxValue) * 200 : 0; // 최대 높이 200px
+          <div className="overflow-x-auto border-t border-gray-200 pt-4">
+            <div className="flex min-w-full items-end justify-between gap-1">
+              {chartData.map((data, index) => {
+                const value = chartType === 'inflow' ? data.inflow : chartType === 'issuance' ? data.issuance : data.usage;
+                const height = maxValue > 0 ? (value / maxValue) * 200 : 0; // 최대 높이 200px
 
-              return (
-                <div key={index} className="flex flex-1 flex-col items-center gap-2">
-                  <div className="relative w-full">
-                    <div
-                      className="w-full rounded-t bg-gray-400 transition-all hover:bg-gray-500"
-                      style={{ height: `${height}px`, minHeight: height > 0 ? '4px' : '0' }}
-                    />
+                return (
+                  <div key={index} className="flex flex-1 flex-col items-center gap-1 min-w-[30px]">
+                    <div className="relative w-full">
+                      <div
+                        className="w-full rounded-t bg-gray-400 transition-all hover:bg-gray-500"
+                        style={{ height: `${height}px`, minHeight: height > 0 ? '4px' : '0' }}
+                      />
+                    </div>
+                    <div className="text-[10px] text-gray-600 whitespace-nowrap">{data.hour}</div>
                   </div>
-                  <div className="text-xs text-gray-600">{data.hour}</div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         ) : (
           <div className="border-t border-gray-200 pt-4 text-center text-gray-500">

@@ -125,6 +125,19 @@ export default function EventLandingPage() {
         }
 
         setEventData(result.data);
+
+        // 방문 로그 기록 (비동기, 실패해도 페이지 로딩에 영향 없음)
+        if (result.success && result.data) {
+          fetch(`/api/events/${domainCode}/track-visit`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }).catch((err) => {
+            console.error('방문 로그 기록 실패:', err);
+            // 방문 로그 실패는 무시
+          });
+        }
       } catch (err: any) {
         console.error('이벤트 로드 오류:', err);
         setError(`이벤트를 불러오는 중 오류가 발생했습니다: ${err.message}`);
