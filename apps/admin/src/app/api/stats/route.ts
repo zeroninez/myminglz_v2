@@ -162,6 +162,7 @@ export async function GET(request: Request) {
             couponIssued: 0,
             couponUsed: 0,
             hourlyData: hourlyInflow,
+            storeStats: [],
           };
         }
 
@@ -187,6 +188,69 @@ export async function GET(request: Request) {
         const couponIssued = couponList.length;
         const couponUsed = couponList.filter((c) => c.is_used).length;
         const conversionRate = couponIssued > 0 ? Math.round((couponUsed / couponIssued) * 100 * 100) / 100 : 0;
+
+        // Store별 검증 통계 조회
+        const { data: stores, error: storesError } = await supabase
+          .from('stores')
+          .select('id, name, slug')
+          .eq('location_id', location.id)
+          .eq('is_active', true);
+
+        const storeList = stores || [];
+        
+        // Store별 검증 수 집계
+        const storeStats = await Promise.all(
+          storeList.map(async (store) => {
+            // 해당 store에서 검증된 쿠폰 조회 (validated_by_store_id)
+            let validatedCouponQuery = supabase
+              .from('coupons')
+              .select('validated_at')
+              .eq('validated_by_store_id', store.id)
+              .not('validated_at', 'is', null);
+
+            if (dateRange) {
+              validatedCouponQuery = validatedCouponQuery
+                .gte('validated_at', dateRange.start.toISOString())
+                .lte('validated_at', dateRange.end.toISOString());
+            }
+
+            const { data: validatedCoupons, error: validatedError } = await validatedCouponQuery;
+            
+            if (validatedError) {
+              console.error(`Store ${store.name} 검증 쿠폰 조회 오류:`, validatedError);
+            }
+
+            const validatedCouponList = validatedCoupons || [];
+            const validationCount = validatedCouponList.length;
+
+            // 시간대별 검증 수 집계 (0시 ~ 23시)
+            const hourlyValidation = Array.from({ length: 24 }, (_, i) => {
+              const hour = i;
+              const hourStart = hour;
+              const hourEnd = hour === 23 ? 24 : hour + 1;
+
+              const validation = validatedCouponList.filter((c) => {
+                if (!c.validated_at) return false;
+                const validatedDate = new Date(c.validated_at);
+                const validatedHour = validatedDate.getHours();
+                return validatedHour >= hourStart && validatedHour < hourEnd;
+              }).length;
+
+              return {
+                hour: `${hour}시`,
+                count: validation,
+              };
+            });
+
+            return {
+              id: store.id,
+              name: store.name,
+              slug: store.slug,
+              validationCount,
+              hourlyValidation,
+            };
+          })
+        );
 
         // 시간대별 데이터 집계 (0시 ~ 23시, 24시간)
         const hourlyData = Array.from({ length: 24 }, (_, i) => {
@@ -224,16 +288,17 @@ export async function GET(request: Request) {
           };
         });
 
-        return {
-          id: event.id,
-          name: event.name,
-          domainCode: event.domain_code,
-          conversionRate,
-          totalInflow,
-          couponIssued,
-          couponUsed,
-          hourlyData,
-        };
+          return {
+            id: event.id,
+            name: event.name,
+            domainCode: event.domain_code,
+            conversionRate,
+            totalInflow,
+            couponIssued,
+            couponUsed,
+            hourlyData,
+            storeStats: storeStats || [],
+          };
       })
     );
 
