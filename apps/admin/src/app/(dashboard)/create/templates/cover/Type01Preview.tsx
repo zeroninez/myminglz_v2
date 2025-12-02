@@ -61,43 +61,43 @@ export default function CoverType01Preview({ data }: CoverType01PreviewProps) {
               paddingLeft: '0',
               paddingRight: '0',
             }}
-          >
-            {label || '\u00A0'}
-          </div>
+      >
+        {label || '\u00A0'}
+      </div>
 
-          <div
+      <div
             className="mt-7 text-center text-[26px] font-bold leading-tight tracking-tight"
-            style={{ color: titlePrimaryColor, visibility: isTitlePrimaryVisible ? 'visible' : 'hidden', minHeight: '2rem' }}
-          >
-            {titlePrimary || '\u00A0'}
-            {titleSecondary && (
-              <>
-                <br />
-                <span
-                  style={{ color: titleSecondaryColor, visibility: isTitleSecondaryVisible ? 'visible' : 'hidden' }}
-                >
-                  {titleSecondary}
-                </span>
-              </>
-            )}
-          </div>
+        style={{ color: titlePrimaryColor, visibility: isTitlePrimaryVisible ? 'visible' : 'hidden', minHeight: '2rem' }}
+      >
+        {titlePrimary || '\u00A0'}
+        {titleSecondary && (
+          <>
+            <br />
+            <span
+              style={{ color: titleSecondaryColor, visibility: isTitleSecondaryVisible ? 'visible' : 'hidden' }}
+            >
+              {titleSecondary}
+            </span>
+          </>
+        )}
+      </div>
 
-          <div
+      <div
             className="mt-2 text-center text-[12px]"
-            style={{ color: subtitleColor, visibility: isSubtitleVisible && subtitle ? 'visible' : 'hidden', minHeight: '1rem' }}
-          >
-            {subtitle || '\u00A0'}
-          </div>
+        style={{ color: subtitleColor, visibility: isSubtitleVisible && subtitle ? 'visible' : 'hidden', minHeight: '1rem' }}
+      >
+        {subtitle || '\u00A0'}
+      </div>
 
           <div className="mt-40 flex flex-col gap-2 text-center text-[11px]">
-            <div style={{ color: body1Color, visibility: isBody1Visible && body1 ? 'visible' : 'hidden', minHeight: '1rem' }}>
-              {body1 || '\u00A0'}
-            </div>
-            <div style={{ color: body2Color, visibility: isBody2Visible && body2 ? 'visible' : 'hidden', minHeight: '1rem' }}>
-              {body2 || '\u00A0'}
-            </div>
-            <div style={{ color: body3Color, visibility: isBody3Visible && body3 ? 'visible' : 'hidden', minHeight: '1rem' }}>
-              {body3 || '\u00A0'}
+        <div style={{ color: body1Color, visibility: isBody1Visible && body1 ? 'visible' : 'hidden', minHeight: '1rem' }}>
+          {body1 || '\u00A0'}
+        </div>
+        <div style={{ color: body2Color, visibility: isBody2Visible && body2 ? 'visible' : 'hidden', minHeight: '1rem' }}>
+          {body2 || '\u00A0'}
+        </div>
+        <div style={{ color: body3Color, visibility: isBody3Visible && body3 ? 'visible' : 'hidden', minHeight: '1rem' }}>
+          {body3 || '\u00A0'}
             </div>
           </div>
         </div>

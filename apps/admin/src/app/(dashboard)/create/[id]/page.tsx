@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import EventInfoSection from '../components/EventInfoSection';
 import EventMissionSection from '../components/EventMissionSection';
-import LandingPageSection from '../components/LandingPageSection';
+import LandingPageSection, { type LandingPageSectionRef } from '../components/LandingPageSection';
 import { convertPageBuilderToDB, convertDBToPageBuilder } from '../utils/dataConverter';
 
 // 각 섹션의 데이터 타입
@@ -53,6 +53,7 @@ export default function EditPage() {
     pageBackgroundColors: {},
     designValues: {},
   });
+  const landingPageSectionRef = useRef<LandingPageSectionRef>(null);
 
   // 초기값 저장
   const [initialEventInfo, setInitialEventInfo] = useState<EventInfoData | null>(null);
@@ -156,8 +157,24 @@ export default function EditPage() {
         return;
       }
 
-      // 2. 랜딩 페이지 데이터 변환
-      const landingPagesData = convertPageBuilderToDB(landingPageDataRef.current);
+      // 1.5. 랜딩 페이지의 대기 중인 이미지들을 Storage에 업로드
+      let finalLandingPageData = landingPageDataRef.current;
+      if (landingPageSectionRef.current) {
+        const uploadResult = await landingPageSectionRef.current.uploadPendingImages();
+        if (!uploadResult.success) {
+          alert('이미지 업로드에 실패했습니다. 다시 시도해주세요.');
+          setIsSubmitting(false);
+          return;
+        }
+        // 업로드된 최신 데이터 사용
+        if (uploadResult.updatedData) {
+          finalLandingPageData = uploadResult.updatedData;
+          landingPageDataRef.current = uploadResult.updatedData;
+        }
+      }
+
+      // 2. 랜딩 페이지 데이터 변환 (최신 업로드된 이미지 URL 포함)
+      const landingPagesData = convertPageBuilderToDB(finalLandingPageData);
 
       // 3. API 호출 (PUT)
       const response = await fetch(`/api/events/${eventId}`, {
@@ -291,6 +308,7 @@ export default function EditPage() {
       )}
       {currentStep === 2 && initialLandingPage && (
         <LandingPageSection
+          ref={landingPageSectionRef}
           initialData={initialLandingPage}
           onDataChange={(data) => {
             landingPageDataRef.current = data;

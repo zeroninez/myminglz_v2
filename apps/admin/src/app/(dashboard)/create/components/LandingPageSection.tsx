@@ -258,8 +258,9 @@ const LandingPageSection = forwardRef<LandingPageSectionRef, LandingPageSectionP
   // 완료 시점에 모든 대기 중인 이미지를 Storage에 업로드
   const uploadPendingImages = async (): Promise<{ success: boolean; updatedData?: any }> => {
     const uploadPromises: Promise<void>[] = [];
-    const updatedDesignValues = { ...designValues };
+    const updatedDesignValues = JSON.parse(JSON.stringify(designValues)); // 깊은 복사
     
+    // pendingImageFiles에 있는 파일들을 업로드
     for (const [fileKey, file] of Object.entries(pendingImageFiles)) {
       const [pageId, fieldId] = fileKey.split('-');
       const pageNum = Number(pageId);
@@ -282,16 +283,19 @@ const LandingPageSection = forwardRef<LandingPageSectionRef, LandingPageSectionP
             }
 
             // 로컬 URL을 실제 Storage URL로 교체
-            const currentValue = updatedDesignValues[pageNum]?.[fieldId] || '';
+            if (!updatedDesignValues[pageNum]) {
+              updatedDesignValues[pageNum] = {};
+            }
+            
+            const currentValue = updatedDesignValues[pageNum][fieldId] || '';
             if (currentValue.startsWith('blob:')) {
               // 로컬 URL인 경우에만 교체
               URL.revokeObjectURL(currentValue); // 메모리 해제
-              
-              if (!updatedDesignValues[pageNum]) {
-                updatedDesignValues[pageNum] = {};
-              }
-              updatedDesignValues[pageNum][fieldId] = data.url;
             }
+            
+            // Storage URL로 교체
+            updatedDesignValues[pageNum][fieldId] = data.url;
+            console.log(`이미지 업로드 완료: ${fieldId} -> ${data.url}`);
           } catch (error: any) {
             console.error(`이미지 업로드 실패 (${fileKey}):`, error);
             throw error;
@@ -301,7 +305,29 @@ const LandingPageSection = forwardRef<LandingPageSectionRef, LandingPageSectionP
     }
 
     try {
-      await Promise.all(uploadPromises);
+      // 모든 이미지 업로드 완료 대기
+      if (uploadPromises.length > 0) {
+        await Promise.all(uploadPromises);
+        console.log('모든 이미지 업로드 완료');
+      }
+      
+      // designValues에서 남아있는 blob URL 확인 및 제거
+      let hasBlobUrls = false;
+      Object.keys(updatedDesignValues).forEach((pageNum) => {
+        Object.keys(updatedDesignValues[Number(pageNum)]).forEach((fieldId) => {
+          const value = updatedDesignValues[Number(pageNum)][fieldId];
+          if (typeof value === 'string' && value.startsWith('blob:')) {
+            console.warn(`경고: blob URL이 남아있음 - 페이지 ${pageNum}, 필드 ${fieldId}`);
+            hasBlobUrls = true;
+            // blob URL 제거 (이미지가 업로드되지 않은 것으로 처리)
+            updatedDesignValues[Number(pageNum)][fieldId] = '';
+          }
+        });
+      });
+      
+      if (hasBlobUrls && Object.keys(pendingImageFiles).length === 0) {
+        console.warn('경고: pendingImageFiles에 파일이 없지만 blob URL이 남아있습니다. 이미지를 다시 선택해주세요.');
+      }
       
       // 업로드된 URL로 designValues 업데이트
       setDesignValues(updatedDesignValues);

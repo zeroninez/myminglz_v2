@@ -6,9 +6,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import CoverType01 from '@/components/templates/CoverType01';
 import CoverType02 from '@/components/templates/CoverType02';
+import { CouponService } from '@myminglz/core';
 
 interface EventData {
   id: string;
@@ -17,6 +18,15 @@ interface EventData {
   start_date: string | null;
   end_date: string | null;
   background_color: string;
+  event_info_config?: {
+    coupon_usage?: 'immediate' | 'later';
+    stores?: Array<{
+      id?: string;
+      name?: string;
+      [key: string]: any;
+    }>;
+    [key: string]: any;
+  } | null;
   landing_pages: Array<{
     id: string;
     page_number: number;
@@ -70,10 +80,12 @@ const templateComponentMap: Record<string, Record<string, React.ComponentType<{ 
 
 export default function EventLandingPage() {
   const params = useParams();
+  const router = useRouter();
   const domainCode = params.domain_code as string;
   const [eventData, setEventData] = useState<EventData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isParticipating, setIsParticipating] = useState(false);
 
   useEffect(() => {
     if (!domainCode) return;
@@ -149,10 +161,78 @@ export default function EventLandingPage() {
     );
   }
 
+  // 참여하기 버튼 핸들러
+  const handleParticipate = async () => {
+    if (!eventData) return;
+
+    try {
+      setIsParticipating(true);
+
+      // event_info_config에서 설정 가져오기
+      const couponUsage = eventData.event_info_config?.coupon_usage || 'later';
+      const stores = eventData.event_info_config?.stores || [];
+      
+      // 첫 번째 store의 id를 slug로 사용 (없으면 domain_code 사용)
+      const storeSlug = stores[0]?.id || domainCode || 'default';
+
+      if (couponUsage === 'immediate') {
+        // 즉시사용 ON - 검증 페이지로 이동
+        router.push(`/store/${storeSlug}/coupon/validate`);
+      } else {
+        // 즉시사용 OFF - 쿠폰 생성 후 보관 페이지로 이동
+        console.log('Generating coupon code...');
+        const result = await CouponService.generateCodeForLocation(storeSlug);
+        console.log('Generation result:', result);
+        
+        if (!result.success || !result.code) {
+          console.error('쿠폰 생성 실패:', result.error);
+          alert('쿠폰 생성 실패: ' + result.error);
+          setIsParticipating(false);
+          return;
+        }
+
+        // DB에 저장
+        console.log('Saving coupon code:', result.code);
+        const saveResult = await CouponService.saveCodeForLocation(result.code, storeSlug);
+        console.log('Save result:', saveResult);
+        
+        if (!saveResult.success) {
+          console.error('쿠폰 저장 실패:', saveResult.error);
+          alert('쿠폰 저장 실패: ' + saveResult.error);
+          setIsParticipating(false);
+          return;
+        }
+        
+        const finalCode = result.code;
+        console.log('Redirecting to success page with code:', finalCode);
+        router.push(`/store/${storeSlug}/coupon/${finalCode}/success`);
+      }
+    } catch (error) {
+      console.error('참여하기 에러:', error);
+      alert('에러 발생: ' + (error instanceof Error ? error.message : '알 수 없는 에러'));
+      setIsParticipating(false);
+    }
+  };
+
+  // 마지막 페이지 번호 찾기
+  const lastPageNumber = eventData?.landing_pages.length 
+    ? Math.max(...eventData.landing_pages.map(p => p.page_number))
+    : 0;
+
+  // 디버깅: 마지막 페이지 정보
+  console.log('🔍 페이지 정보:', {
+    totalPages: eventData?.landing_pages.length,
+    lastPageNumber,
+    landingPages: eventData?.landing_pages.map(p => ({
+      page_number: p.page_number,
+      page_type: p.page_type,
+    })),
+  });
+
   // 스크롤 기반 페이지 네비게이션
   return (
     <div className="h-screen overflow-y-scroll snap-y snap-mandatory">
-      {eventData.landing_pages.map((page) => {
+        {eventData.landing_pages.map((page) => {
         const pageData = eventData.landing_pages.find(
           (p) => p.page_number === page.page_number
         );
@@ -200,14 +280,29 @@ export default function EventLandingPage() {
           });
         }
 
+        const isLastPage = pageData.page_number === lastPageNumber;
+
+        // 디버깅: 마지막 페이지 확인
+        console.log('🔍 마지막 페이지 체크:', {
+          pageNumber: pageData.page_number,
+          lastPageNumber,
+          isLastPage,
+          willShowButton: isLastPage,
+        });
+
         return (
           <div
             key={page.id}
-            className="h-screen snap-start snap-always flex items-center justify-center"
-            style={{ backgroundColor: pageData.background_color || eventData.background_color }}
+            className="h-screen snap-start snap-always flex items-center justify-center relative"
+            style={{ 
+              backgroundColor: pageData.background_color || eventData.background_color,
+              overflow: isLastPage ? 'visible' : 'hidden',
+            }}
           >
             {Component ? (
-              <Component data={data} />
+              <div className="relative w-full h-full" style={{ zIndex: 1 }}>
+                <Component data={data} />
+              </div>
             ) : (
               <div className="text-center text-white">
                 <p>템플릿을 찾을 수 없습니다.</p>
@@ -215,6 +310,31 @@ export default function EventLandingPage() {
                   {pageData.page_type} - {pageData.template_type}
                 </p>
               </div>
+            )}
+            
+            {/* 마지막 페이지에만 참여하기 버튼 표시 */}
+            {isLastPage && (
+              <>
+                {console.log('✅ 버튼 렌더링 시작 - 마지막 페이지')}
+                <div 
+                  className="absolute bottom-8 left-0 right-0 flex justify-center"
+                  style={{ 
+                    zIndex: 10000,
+                    pointerEvents: 'auto',
+                  }}
+                >
+                  <button
+                    onClick={handleParticipate}
+                    disabled={isParticipating}
+                    className="px-8 py-4 bg-blue-500 text-white rounded-lg font-semibold text-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-lg"
+                    style={{ 
+                      pointerEvents: 'auto',
+                    }}
+                  >
+                    {isParticipating ? '처리 중...' : '참여하기'}
+                  </button>
+                </div>
+              </>
             )}
           </div>
         );
