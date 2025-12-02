@@ -27,6 +27,14 @@ interface EventData {
     }>;
     [key: string]: any;
   } | null;
+  stores?: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    location_id: string;
+    description?: string;
+    is_active: boolean;
+  }>;
   landing_pages: Array<{
     id: string;
     page_number: number;
@@ -170,29 +178,38 @@ export default function EventLandingPage() {
 
       // event_info_config에서 설정 가져오기
       const couponUsage = eventData.event_info_config?.coupon_usage || 'later';
-      const stores = eventData.event_info_config?.stores || [];
       
-      // store 정보 확인 및 slug 결정
-      // event_info_config.stores의 id는 임시 ID (예: "store-1764650143294")
-      // 실제 DB의 location slug와 다르므로 domain_code를 location slug로 사용
-      // domain_code가 실제 DB locations 테이블의 slug로 사용됩니다
-      const storeSlug = domainCode || 'default';
+      // Stores 정보 가져오기 (DB의 stores 테이블에서)
+      const stores = eventData.stores || [];
+      
+      // 첫 번째 store의 slug 사용 (없으면 domain_code를 location slug로 사용)
+      const firstStore = stores[0];
+      const storeSlug = firstStore?.slug || domainCode || 'default';
+      const locationSlug = domainCode; // location slug는 항상 domain_code
       
       console.log('🔍 Store 정보:', {
         stores,
-        storeSlug: domainCode,
+        firstStore,
+        storeSlug,
+        locationSlug,
         domainCode,
         couponUsage,
-        note: 'domain_code를 location slug로 사용',
       });
 
       if (couponUsage === 'immediate') {
         // 즉시사용 ON - 검증 페이지로 이동
-        router.push(`/store/${storeSlug}/coupon/validate`);
+        // 실제 store slug 사용: /[domain_code]/verify/[store_slug]
+        if (firstStore) {
+          router.push(`/${domainCode}/verify/${firstStore.slug}`);
+        } else {
+          // store가 없으면 domain_code로 검증 페이지 (기존 방식)
+          router.push(`/${domainCode}/verify/${domainCode}`);
+        }
       } else {
         // 즉시사용 OFF - 쿠폰 생성 후 보관 페이지로 이동
+        // location slug로 쿠폰 생성
         console.log('Generating coupon code...');
-        const result = await CouponService.generateCodeForLocation(storeSlug);
+        const result = await CouponService.generateCodeForLocation(locationSlug);
         console.log('Generation result:', result);
         
         if (!result.success || !result.code) {
@@ -206,9 +223,9 @@ export default function EventLandingPage() {
           return;
         }
 
-        // DB에 저장
+        // DB에 저장 (location slug 사용)
         console.log('Saving coupon code:', result.code);
-        const saveResult = await CouponService.saveCodeForLocation(result.code, storeSlug);
+        const saveResult = await CouponService.saveCodeForLocation(result.code, locationSlug);
         console.log('Save result:', saveResult);
         
         if (!saveResult.success) {
@@ -220,6 +237,7 @@ export default function EventLandingPage() {
         
         const finalCode = result.code;
         console.log('Redirecting to success page with code:', finalCode);
+        // store slug로 성공 페이지 이동
         router.push(`/store/${storeSlug}/coupon/${finalCode}/success`);
       }
     } catch (error) {

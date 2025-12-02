@@ -89,11 +89,40 @@ export async function GET(
 
     console.log('✅ 최종 포맷된 랜딩 페이지:', formattedLandingPages);
 
+    // 4. Stores 조회 (이벤트의 location과 연결된 stores)
+    let stores: any[] = [];
+    if (event.domain_code) {
+      // Location 조회 (domain_code가 location slug)
+      const { data: location } = await supabase
+        .from('locations')
+        .select('id')
+        .eq('slug', event.domain_code)
+        .single();
+
+      if (location) {
+        // 해당 location의 stores 조회
+        const { data: storesData, error: storesError } = await supabase
+          .from('stores')
+          .select('id, name, slug, location_id, description, is_active')
+          .eq('location_id', location.id)
+          .eq('is_active', true)
+          .order('created_at', { ascending: true });
+
+        if (!storesError && storesData) {
+          stores = storesData;
+          console.log('✅ Stores 조회 성공:', stores.length, '개');
+        } else if (storesError) {
+          console.error('Stores 조회 오류:', storesError);
+        }
+      }
+    }
+
     return NextResponse.json({
       success: true,
       data: {
         ...event,
         landing_pages: formattedLandingPages,
+        stores: stores, // stores 정보 추가
       },
     });
   } catch (error: any) {

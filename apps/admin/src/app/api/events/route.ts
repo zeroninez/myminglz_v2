@@ -8,6 +8,30 @@ import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
+// Store name을 slug로 변환하는 함수
+function generateSlugFromName(name: string, domainCode: string, index: number): string {
+  // 한글, 영문, 숫자, 공백을 허용하고 나머지는 제거
+  const cleaned = name
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-가-힣]/g, '') // 특수문자 제거
+    .replace(/\s+/g, '-') // 공백을 하이픈으로
+    .replace(/-+/g, '-') // 연속된 하이픈을 하나로
+    .replace(/^-|-$/g, ''); // 앞뒤 하이픈 제거
+  
+  // 한글이 포함된 경우 영문 변환 대신 domainCode와 index 사용
+  if (/[가-힣]/.test(cleaned)) {
+    return `${domainCode}-store-${index + 1}`;
+  }
+  
+  // slug가 비어있으면 domainCode와 index 사용
+  if (!cleaned) {
+    return `${domainCode}-store-${index + 1}`;
+  }
+  
+  return `${domainCode}-${cleaned}`;
+}
+
 // 이벤트 생성
 export async function POST(request: Request) {
   try {
@@ -95,6 +119,83 @@ export async function POST(request: Request) {
         { success: false, error: '이벤트 생성에 실패했습니다.', details: eventError.message },
         { status: 500 }
       );
+    }
+
+    // 1.5. Location 생성 (쿠폰 발급을 위해)
+    // domain_code를 slug로 사용하여 location 생성
+    // 이미 존재하는 경우는 건너뜀
+    const { data: existingLocation } = await supabase
+      .from('locations')
+      .select('id')
+      .eq('slug', domain_code)
+      .single();
+
+    if (!existingLocation) {
+      // Location 생성 (쿠폰 발급을 위해)
+      // name = 이벤트 이름, slug = domain_code
+      const locationData: any = {
+        name: name,
+        slug: domain_code,
+        description: body.description || null,
+        is_active: true, // CouponService에서 is_active로 필터링하므로 필수
+      };
+
+      const { error: locationError } = await supabase
+        .from('locations')
+        .insert(locationData);
+
+      if (locationError) {
+        console.error('Location 생성 오류:', locationError);
+        // Location 생성 실패해도 이벤트는 생성되었으므로 경고만
+        console.warn('Location 생성에 실패했지만 이벤트는 생성되었습니다:', locationError.message);
+      } else {
+        console.log('✅ Location 자동 생성 성공:', { name, slug: domain_code });
+      }
+    } else {
+      console.log('Location 이미 존재:', { slug: domain_code });
+    }
+
+    // 1.6. Stores 생성 (event_info_config.stores를 stores 테이블에 저장)
+    if (body.event_info_config?.stores && Array.isArray(body.event_info_config.stores) && body.event_info_config.stores.length > 0) {
+      // Location ID 조회 (방금 생성한 location 또는 기존 location)
+      const { data: location } = await supabase
+        .from('locations')
+        .select('id')
+        .eq('slug', domain_code)
+        .single();
+
+      if (location) {
+        const storesData = body.event_info_config.stores
+          .filter((store: any) => store.name && store.name.trim()) // name이 있는 것만
+          .map((store: any, index: number) => {
+            const slug = generateSlugFromName(store.name, domain_code, index);
+            return {
+              name: store.name.trim(),
+              slug: slug,
+              location_id: location.id,
+              description: store.benefit || store.description || null,
+              is_active: true,
+            };
+          });
+
+        if (storesData.length > 0) {
+          // 기존 stores 삭제 (이벤트와 연결된 stores가 있다면)
+          // 일단 새로 생성만 하고, 나중에 업데이트 로직 추가 가능
+          
+          const { error: storesError } = await supabase
+            .from('stores')
+            .insert(storesData);
+
+          if (storesError) {
+            console.error('Stores 생성 오류:', storesError);
+            console.warn('Stores 생성에 실패했지만 이벤트는 생성되었습니다:', storesError.message);
+          } else {
+            console.log('✅ Stores 자동 생성 성공:', storesData.length, '개');
+          }
+        }
+      } else {
+        console.warn('Location을 찾을 수 없어 Stores를 생성할 수 없습니다.');
+      }
     }
 
     // 2. 랜딩 페이지 생성
