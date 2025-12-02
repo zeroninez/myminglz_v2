@@ -96,6 +96,33 @@ export default function EditPage() {
         };
 
         // EventInfoSection 초기값 설정
+        // DB에서 가져온 stores 데이터를 event_info_config.stores에 매핑
+        const storesFromDB = eventData.stores || [];
+        const eventInfoConfig = eventData.event_info_config || {};
+        const mappedStores = storesFromDB.map((store: any) => {
+          // description에서 tempId 추출 (JSON 형태로 저장되어 있을 수 있음)
+          let tempId = null;
+          let benefit = store.description || '';
+          try {
+            const parsed = JSON.parse(store.description || '{}');
+            if (parsed.tempId) {
+              tempId = parsed.tempId;
+              benefit = parsed.description || '';
+            }
+          } catch {
+            // JSON이 아니면 그대로 사용
+          }
+          
+          return {
+            id: tempId || store.id, // 임시 ID가 있으면 사용, 없으면 DB ID
+            name: store.name,
+            benefit: benefit,
+            usage_period: '',
+            use_event_period: true,
+            slug: store.slug, // DB에서 가져온 slug 포함
+          };
+        });
+
         const eventInfo: EventInfoData = {
           name: eventData.name || '',
           domain_code: eventData.domain_code || '',
@@ -105,7 +132,10 @@ export default function EditPage() {
           description: eventData.description || '',
           content_html: eventData.content_html || '',
           coupon_preview_image_url: eventData.coupon_preview_image_url || '',
-          event_info_config: eventData.event_info_config || null,
+          event_info_config: {
+            ...eventInfoConfig,
+            stores: mappedStores.length > 0 ? mappedStores : (eventInfoConfig.stores || []),
+          },
         };
         setInitialEventInfo(eventInfo);
         eventInfoDataRef.current = eventInfo;

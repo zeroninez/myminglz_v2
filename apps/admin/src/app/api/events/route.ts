@@ -166,11 +166,19 @@ export async function POST(request: Request) {
           .filter((store: any) => store.name && store.name.trim()) // name이 있는 것만
           .map((store: any, index: number) => {
             const slug = generateSlugFromName(store.name, domain_code, index);
+            // 임시 ID를 description에 JSON 형태로 저장 (slug와 함께 검증 가능하도록)
+            const tempId = store.id || null;
+            const descriptionText = store.benefit || store.description || null;
+            // description에 임시 ID 정보 포함 (JSON 형태)
+            const descriptionWithTempId = tempId 
+              ? JSON.stringify({ tempId, description: descriptionText }) 
+              : descriptionText;
+            
             return {
               name: store.name.trim(),
               slug: slug,
               location_id: location.id,
-              description: store.benefit || store.description || null,
+              description: descriptionWithTempId,
               is_active: true,
             };
           });

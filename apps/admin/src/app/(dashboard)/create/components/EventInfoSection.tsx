@@ -78,6 +78,7 @@ export default function EventInfoSection({ initialData, onDataChange }: EventInf
         usagePeriod: store.usage_period || '',
         useEventPeriod: store.use_event_period !== false,
         qrCodeUrl: null,
+        slug: store.slug, // DB에서 가져온 slug 포함
       }));
     }
     return [];
@@ -101,6 +102,7 @@ export default function EventInfoSection({ initialData, onDataChange }: EventInf
             usagePeriod: store.usage_period || '',
             useEventPeriod: store.use_event_period !== false,
             qrCodeUrl: null,
+            slug: store.slug, // DB에서 가져온 slug 포함
           }))
         );
       }

@@ -85,40 +85,63 @@ export class CouponService {
   /**
    * 가게 정보 조회 (slug로)
    */
-  static async getStoreBySlug(slug: string): Promise<Store | null> {
+  static async getStoreBySlug(slugOrTempId: string): Promise<Store | null> {
     try {
       const supabase = this.checkInitialized();
-      console.log('🔍 Searching for store with slug:', slug);
+      const trimmedIdentifier = slugOrTempId.trim();
+      console.log('🔍 Searching for store with identifier:', trimmedIdentifier);
       
-      // slug 형식 확인: {domain_code}-{store_name} (예: 23424324-3333)
-      if (!slug || typeof slug !== 'string') {
-        console.error('❌ Invalid slug format:', slug);
+      // slug 형식 확인: {domain_code}-{store_name} (예: 23424324-3333) 또는 임시 ID
+      if (!trimmedIdentifier || typeof trimmedIdentifier !== 'string') {
+        console.error('❌ Invalid identifier format:', trimmedIdentifier);
         return null;
       }
 
+      // 1. 먼저 slug로 찾기
       const { data, error } = await supabase
         .from('stores')
         .select('*')
-        .eq('slug', slug.trim())
+        .eq('slug', trimmedIdentifier)
         .eq('is_active', true)
         .single();
 
-      if (error) {
-        console.error('❌ Store query error:', error);
-        // 에러가 PGRST116 (No rows found)인 경우도 로그 출력
-        if (error.code === 'PGRST116') {
-          console.log('⚠️ Store not found in database for slug:', slug);
+      if (data) {
+        console.log('✅ Store found by slug:', { id: data.id, name: data.name, slug: data.slug });
+        return data;
+      }
+
+      // 2. slug로 찾지 못하면 임시 ID로 찾기 (description에서 JSON 파싱)
+      if (error || !data) {
+        console.log('⚠️ No store found with slug, trying temp ID...');
+        
+        // 모든 활성화된 stores 조회해서 description에서 tempId 확인
+        const { data: allStores, error: allStoresError } = await supabase
+          .from('stores')
+          .select('*')
+          .eq('is_active', true);
+
+        if (!allStoresError && allStores) {
+          for (const store of allStores) {
+            if (store.description) {
+              try {
+                // description이 JSON인지 확인하고 tempId 추출
+                const parsed = JSON.parse(store.description);
+                if (parsed && parsed.tempId === trimmedIdentifier) {
+                  console.log('✅ Store found by temp ID:', { id: store.id, name: store.name, tempId: parsed.tempId });
+                  return store;
+                }
+              } catch {
+                // JSON이 아니면 무시 (일반 description)
+              }
+            }
+          }
         }
+        
+        console.log('⚠️ No store found with identifier:', trimmedIdentifier);
         return null;
       }
       
-      if (!data) {
-        console.log('⚠️ No store found with slug:', slug);
-        return null;
-      }
-
-      console.log('✅ Store found:', { id: data.id, name: data.name, slug: data.slug });
-      return data;
+      return null;
     } catch (error) {
       console.error('❌ 가게 조회 오류:', error);
       return null;

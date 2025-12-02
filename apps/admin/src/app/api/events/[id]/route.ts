@@ -134,11 +134,40 @@ export async function GET(
       contents: pageContents[page.id] || [],
     }));
 
+    // Stores 조회 (이벤트의 location과 연결된 stores)
+    let stores: any[] = [];
+    if (event.domain_code) {
+      // Location 조회 (domain_code가 location slug)
+      const { data: location } = await supabase
+        .from('locations')
+        .select('id')
+        .eq('slug', event.domain_code)
+        .single();
+
+      if (location) {
+        // 해당 location의 stores 조회
+        const { data: storesData, error: storesError } = await supabase
+          .from('stores')
+          .select('id, name, slug, location_id, description, is_active')
+          .eq('location_id', location.id)
+          .eq('is_active', true)
+          .order('created_at', { ascending: true });
+
+        if (!storesError && storesData) {
+          stores = storesData;
+          console.log('✅ Stores 조회 성공:', stores.length, '개');
+        } else if (storesError) {
+          console.error('Stores 조회 오류:', storesError);
+        }
+      }
+    }
+
     return NextResponse.json({
       success: true,
       data: {
         ...event,
         landing_pages: formattedLandingPages,
+        stores: stores, // Stores 정보 추가
       },
     });
   } catch (error: any) {
@@ -316,11 +345,19 @@ export async function PUT(
             .filter((store: any) => store.name && store.name.trim()) // name이 있는 것만
             .map((store: any, index: number) => {
               const slug = generateSlugFromName(store.name, finalDomainCode, index);
+              // 임시 ID를 description에 JSON 형태로 저장 (slug와 함께 검증 가능하도록)
+              const tempId = store.id || null;
+              const descriptionText = store.benefit || store.description || null;
+              // description에 임시 ID 정보 포함 (JSON 형태)
+              const descriptionWithTempId = tempId 
+                ? JSON.stringify({ tempId, description: descriptionText }) 
+                : descriptionText;
+              
               return {
                 name: store.name.trim(),
                 slug: slug,
                 location_id: location.id,
-                description: store.benefit || store.description || null,
+                description: descriptionWithTempId,
                 is_active: true,
               };
             });
