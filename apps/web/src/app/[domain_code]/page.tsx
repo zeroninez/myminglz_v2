@@ -172,8 +172,18 @@ export default function EventLandingPage() {
       const couponUsage = eventData.event_info_config?.coupon_usage || 'later';
       const stores = eventData.event_info_config?.stores || [];
       
-      // 첫 번째 store의 id를 slug로 사용 (없으면 domain_code 사용)
-      const storeSlug = stores[0]?.id || domainCode || 'default';
+      // store 정보 확인 및 slug 결정
+      // event_info_config의 store.id는 임시 ID일 수 있으므로,
+      // domain_code를 기본 location slug로 사용
+      // 만약 stores에 실제 DB slug가 있다면 그것을 우선 사용
+      const storeSlug = stores[0]?.slug || domainCode || 'default';
+      
+      console.log('🔍 Store 정보:', {
+        stores,
+        storeSlug,
+        domainCode,
+        couponUsage,
+      });
 
       if (couponUsage === 'immediate') {
         // 즉시사용 ON - 검증 페이지로 이동
@@ -186,7 +196,11 @@ export default function EventLandingPage() {
         
         if (!result.success || !result.code) {
           console.error('쿠폰 생성 실패:', result.error);
-          alert('쿠폰 생성 실패: ' + result.error);
+          // location이 없을 때 더 명확한 메시지
+          const errorMessage = result.error?.includes('장소를 찾을 수 없습니다') 
+            ? `장소를 찾을 수 없습니다. 관리자에게 문의해주세요. (사용된 slug: ${storeSlug})`
+            : result.error || '알 수 없는 오류';
+          alert('쿠폰 생성 실패: ' + errorMessage);
           setIsParticipating(false);
           return;
         }
