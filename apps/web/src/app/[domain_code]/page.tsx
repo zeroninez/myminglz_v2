@@ -209,46 +209,43 @@ export default function EventLandingPage() {
         couponUsage,
       });
 
+      // 즉시사용 여부와 관계없이 쿠폰 코드 생성
+      console.log('Generating coupon code...');
+      const result = await CouponService.generateCodeForLocation(locationSlug);
+      console.log('Generation result:', result);
+      
+      if (!result.success || !result.code) {
+        console.error('쿠폰 생성 실패:', result.error);
+        // location이 없을 때 더 명확한 메시지
+        const errorMessage = result.error?.includes('장소를 찾을 수 없습니다') 
+          ? `장소를 찾을 수 없습니다. 관리자에게 문의해주세요. (사용된 slug: ${locationSlug})`
+          : result.error || '알 수 없는 오류';
+        alert('쿠폰 생성 실패: ' + errorMessage);
+        setIsParticipating(false);
+        return;
+      }
+
+      // DB에 저장 (location slug 사용)
+      console.log('Saving coupon code:', result.code);
+      const saveResult = await CouponService.saveCodeForLocation(result.code, locationSlug);
+      console.log('Save result:', saveResult);
+      
+      if (!saveResult.success) {
+        console.error('쿠폰 저장 실패:', saveResult.error);
+        alert('쿠폰 저장 실패: ' + saveResult.error);
+        setIsParticipating(false);
+        return;
+      }
+      
+      const finalCode = result.code;
+
       if (couponUsage === 'immediate') {
-        // 즉시사용 ON - 검증 페이지로 이동
-        // 실제 store slug 사용: /[domain_code]/verify/[store_slug]
-        if (firstStore) {
-          router.push(`/${domainCode}/verify/${firstStore.slug}`);
-        } else {
-          // store가 없으면 domain_code로 검증 페이지 (기존 방식)
-          router.push(`/${domainCode}/verify/${domainCode}`);
-        }
+        // 즉시사용 ON - 쿠폰 코드 생성 후 검증 페이지로 이동
+        // location slug (domain_code)로 검증 페이지 이동 (쿠폰 코드 포함)
+        console.log('Redirecting to validate page with code:', finalCode);
+        router.push(`/store/${locationSlug}/coupon/${finalCode}/validate`);
       } else {
         // 즉시사용 OFF - 쿠폰 생성 후 보관 페이지로 이동
-        // location slug로 쿠폰 생성
-        console.log('Generating coupon code...');
-        const result = await CouponService.generateCodeForLocation(locationSlug);
-        console.log('Generation result:', result);
-        
-        if (!result.success || !result.code) {
-          console.error('쿠폰 생성 실패:', result.error);
-          // location이 없을 때 더 명확한 메시지
-          const errorMessage = result.error?.includes('장소를 찾을 수 없습니다') 
-            ? `장소를 찾을 수 없습니다. 관리자에게 문의해주세요. (사용된 slug: ${storeSlug})`
-            : result.error || '알 수 없는 오류';
-          alert('쿠폰 생성 실패: ' + errorMessage);
-          setIsParticipating(false);
-          return;
-        }
-
-        // DB에 저장 (location slug 사용)
-        console.log('Saving coupon code:', result.code);
-        const saveResult = await CouponService.saveCodeForLocation(result.code, locationSlug);
-        console.log('Save result:', saveResult);
-        
-        if (!saveResult.success) {
-          console.error('쿠폰 저장 실패:', saveResult.error);
-          alert('쿠폰 저장 실패: ' + saveResult.error);
-          setIsParticipating(false);
-          return;
-        }
-        
-        const finalCode = result.code;
         console.log('Redirecting to success page with code:', finalCode);
         // location slug (domain_code)로 성공 페이지 이동 (여러 사용처 중 어디서 사용할지는 QR 코드로 확인)
         router.push(`/store/${locationSlug}/coupon/${finalCode}/success`);

@@ -51,26 +51,39 @@ export async function GET(request: Request) {
     if (period === 'yesterday') {
       const yesterday = new Date(now);
       yesterday.setDate(yesterday.getDate() - 1);
+      yesterday.setHours(0, 0, 0, 0);
+      const endDate = new Date(yesterday);
+      endDate.setHours(23, 59, 59, 999);
       dateRange = {
-        start: new Date(yesterday.setHours(0, 0, 0, 0)),
-        end: new Date(yesterday.setHours(23, 59, 59, 999)),
+        start: yesterday,
+        end: endDate,
       };
     } else if (period === 'today') {
+      const startDate = new Date(now);
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(now);
+      endDate.setHours(23, 59, 59, 999);
       dateRange = {
-        start: new Date(now.setHours(0, 0, 0, 0)),
-        end: new Date(now.setHours(23, 59, 59, 999)),
+        start: startDate,
+        end: endDate,
       };
     } else if (period === 'thisWeek') {
       const startOfWeek = new Date(now);
       startOfWeek.setDate(now.getDate() - now.getDay());
+      startOfWeek.setHours(0, 0, 0, 0);
+      const endDate = new Date(now);
+      endDate.setHours(23, 59, 59, 999);
       dateRange = {
-        start: new Date(startOfWeek.setHours(0, 0, 0, 0)),
-        end: new Date(now.setHours(23, 59, 59, 999)),
+        start: startOfWeek,
+        end: endDate,
       };
     } else if (period === 'thisMonth') {
+      const startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      const endDate = new Date(now);
+      endDate.setHours(23, 59, 59, 999);
       dateRange = {
-        start: new Date(now.getFullYear(), now.getMonth(), 1),
-        end: new Date(now.setHours(23, 59, 59, 999)),
+        start: startDate,
+        end: endDate,
       };
     }
 
@@ -80,6 +93,7 @@ export async function GET(request: Request) {
         end: new Date(endDate),
       };
     }
+
 
     // 이벤트 목록 가져오기 (필터 조건)
     let query = supabase
@@ -224,16 +238,16 @@ export async function GET(request: Request) {
             const validationCount = validatedCouponList.length;
 
             // 시간대별 검증 수 집계 (0시 ~ 23시)
+            // 여러 날의 데이터를 합쳐서 시간대별로 집계
             const hourlyValidation = Array.from({ length: 24 }, (_, i) => {
               const hour = i;
-              const hourStart = hour;
-              const hourEnd = hour === 23 ? 24 : hour + 1;
-
+              
+              // 해당 시간대의 검증 수 집계 (모든 날짜 합산)
               const validation = validatedCouponList.filter((c) => {
                 if (!c.validated_at) return false;
                 const validatedDate = new Date(c.validated_at);
                 const validatedHour = validatedDate.getHours();
-                return validatedHour >= hourStart && validatedHour < hourEnd;
+                return validatedHour === hour;
               }).length;
 
               return {
