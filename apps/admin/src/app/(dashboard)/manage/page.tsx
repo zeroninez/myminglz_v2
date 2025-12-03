@@ -28,6 +28,8 @@ export default function ManagePage() {
   const [selectedSizes, setSelectedSizes] = useState<Record<number, QRSize>>({});
   const [selectedFormats, setSelectedFormats] = useState<Record<number, ImageFormat>>({});
   const [sizeSelectMode, setSizeSelectMode] = useState<Record<number, 'print' | 'save' | null>>({});
+  const [deletingEventId, setDeletingEventId] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -175,6 +177,44 @@ export default function ManagePage() {
     });
   };
 
+  // 삭제 확인 모달 열기
+  const handleDeleteClick = (event: Event) => {
+    setShowDeleteConfirm(event.id);
+  };
+
+  // 삭제 확인 모달 닫기
+  const handleDeleteCancel = () => {
+    setShowDeleteConfirm(null);
+  };
+
+  // 이벤트 삭제
+  const handleDeleteConfirm = async (eventId: string) => {
+    try {
+      setDeletingEventId(eventId);
+      setShowDeleteConfirm(null);
+
+      const response = await fetch(`/api/events/${eventId}`, {
+        method: 'DELETE',
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        alert(result.error || '이벤트 삭제에 실패했습니다.');
+        return;
+      }
+
+      // 이벤트 목록에서 제거
+      setEvents(prev => prev.filter(event => event.id !== eventId));
+      alert('이벤트가 성공적으로 삭제되었습니다.');
+    } catch (err: any) {
+      console.error('이벤트 삭제 오류:', err);
+      alert('이벤트 삭제 중 오류가 발생했습니다.');
+    } finally {
+      setDeletingEventId(null);
+    }
+  };
+
   return (
     <section className="rounded-lg border border-gray-200 bg-white p-10 shadow-sm">
       <div className="mb-6">
@@ -293,10 +333,17 @@ export default function ManagePage() {
                       </button>
                       <Link
                         href={`/create/${event.id}`}
-                        className="text-blue-600 hover:text-blue-900"
+                        className="text-blue-600 hover:text-blue-900 mr-4"
                       >
                         수정
                       </Link>
+                      <button
+                        onClick={() => handleDeleteClick(event)}
+                        disabled={deletingEventId === event.id}
+                        className="text-red-600 hover:text-red-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {deletingEventId === event.id ? '삭제 중...' : '삭제'}
+                      </button>
                     </td>
                   </tr>
                 );
@@ -444,6 +491,40 @@ export default function ManagePage() {
                 className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
               >
                 닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 삭제 확인 모달 */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-4">
+              이벤트 삭제 확인
+            </h3>
+            <p className="text-gray-600 mb-6">
+              정말로 이 이벤트를 삭제하시겠습니까?
+              <br />
+              <span className="text-red-600 font-medium">
+                이 작업은 되돌릴 수 없으며, 관련된 모든 데이터(쿠폰, 매장, 방문 기록 등)가 함께 삭제됩니다.
+              </span>
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={handleDeleteCancel}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                disabled={deletingEventId !== null}
+              >
+                취소
+              </button>
+              <button
+                onClick={() => handleDeleteConfirm(showDeleteConfirm)}
+                disabled={deletingEventId !== null}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {deletingEventId ? '삭제 중...' : '삭제'}
               </button>
             </div>
           </div>

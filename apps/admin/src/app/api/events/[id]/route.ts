@@ -438,6 +438,24 @@ export async function PUT(
   }
 }
 
+// Storage 경로 추출 헬퍼 함수
+function extractStoragePath(url: string): string | null {
+  if (!url || typeof url !== 'string') return null;
+  
+  // Supabase Storage URL 형식: https://{project}.supabase.co/storage/v1/object/public/{bucket}/{path}
+  const storageMatch = url.match(/\/storage\/v1\/object\/public\/event-images\/(.+)$/);
+  if (storageMatch) {
+    return storageMatch[1];
+  }
+  
+  // 상대 경로인 경우 (이미 path만 있는 경우)
+  if (url.startsWith('landing-pages/')) {
+    return url;
+  }
+  
+  return null;
+}
+
 // 이벤트 삭제
 export async function DELETE(
   request: Request,
@@ -489,10 +507,10 @@ export async function DELETE(
 
     const eventId = params.id;
 
-    // 이벤트 소유권 확인
+    // 이벤트 소유권 확인 및 domain_code 가져오기
     const { data: existingEvent } = await supabase
       .from('events')
-      .select('id')
+      .select('id, domain_code')
       .eq('id', eventId)
       .eq('user_id', userData.user.id)
       .single();
@@ -504,7 +522,143 @@ export async function DELETE(
       );
     }
 
-    // CASCADE로 인해 관련 데이터도 자동 삭제됨
+    // 관련 데이터 삭제 순서 (외래키 제약 조건 고려)
+    
+    // 0. 이미지 파일 삭제 (Storage에서)
+    try {
+      // 0-1. event_images 테이블에서 이미지 정보 조회
+      const { data: eventImages } = await supabase
+        .from('event_images')
+        .select('image_url, image_path')
+        .eq('event_id', eventId);
+
+      // 0-2. landing_pages의 page_contents에서 이미지 URL 추출
+      const { data: landingPages } = await supabase
+        .from('landing_pages')
+        .select('id')
+        .eq('event_id', eventId);
+
+      const pageContentsWithImages: string[] = [];
+      if (landingPages) {
+        for (const page of landingPages) {
+          const { data: contents } = await supabase
+            .from('page_contents')
+            .select('field_value')
+            .eq('landing_page_id', page.id);
+          
+          if (contents) {
+            contents.forEach(content => {
+              if (content.field_value && typeof content.field_value === 'string') {
+                // 이미지 URL 패턴 확인 (Storage URL 또는 일반 URL)
+                if (content.field_value.includes('storage/v1/object/public/event-images/') || 
+                    content.field_value.includes('.png') || 
+                    content.field_value.includes('.jpg') || 
+                    content.field_value.includes('.jpeg')) {
+                  pageContentsWithImages.push(content.field_value);
+                }
+              }
+            });
+          }
+        }
+      }
+
+      // 0-3. events 테이블의 coupon_preview_image_url 확인
+      const { data: eventData } = await supabase
+        .from('events')
+        .select('coupon_preview_image_url')
+        .eq('id', eventId)
+        .single();
+
+      // 0-4. 모든 이미지 경로 수집
+      const imagePaths: string[] = [];
+      
+      // event_images의 image_path 또는 URL에서 경로 추출
+      if (eventImages) {
+        eventImages.forEach(img => {
+          if (img.image_path) {
+            imagePaths.push(img.image_path);
+          } else if (img.image_url) {
+            const path = extractStoragePath(img.image_url);
+            if (path) imagePaths.push(path);
+          }
+        });
+      }
+
+      // page_contents의 이미지 URL에서 경로 추출
+      pageContentsWithImages.forEach(url => {
+        const path = extractStoragePath(url);
+        if (path) imagePaths.push(path);
+      });
+
+      // coupon_preview_image_url에서 경로 추출
+      if (eventData?.coupon_preview_image_url) {
+        const path = extractStoragePath(eventData.coupon_preview_image_url);
+        if (path) imagePaths.push(path);
+      }
+
+      // 0-5. 중복 제거 및 Storage에서 삭제
+      const uniquePaths = [...new Set(imagePaths)];
+      if (uniquePaths.length > 0) {
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+        const bucketName = 'event-images';
+        
+        // 각 이미지 파일 삭제
+        for (const path of uniquePaths) {
+          try {
+            const { error: deleteImgError } = await supabase.storage
+              .from(bucketName)
+              .remove([path]);
+            
+            if (deleteImgError) {
+              console.warn(`이미지 삭제 실패 (${path}):`, deleteImgError);
+            } else {
+              console.log(`이미지 삭제 성공: ${path}`);
+            }
+          } catch (imgError) {
+            console.warn(`이미지 삭제 중 오류 (${path}):`, imgError);
+          }
+        }
+
+      }
+    } catch (imageDeleteError) {
+      console.error('이미지 삭제 중 오류:', imageDeleteError);
+      // 이미지 삭제 실패해도 계속 진행 (DB 삭제는 계속)
+      }
+
+    // 1. Page visits 삭제 (event_id로)
+    await supabase
+      .from('page_visits')
+      .delete()
+      .eq('event_id', eventId);
+
+    // 2. Location 및 관련 데이터 삭제 (domain_code로 location 찾기)
+    const { data: location } = await supabase
+      .from('locations')
+      .select('id')
+      .eq('slug', existingEvent.domain_code)
+      .single();
+
+    if (location) {
+      // 2-1. 해당 location의 coupons 삭제
+      await supabase
+        .from('coupons')
+        .delete()
+        .eq('location_id', location.id);
+
+      // 2-2. 해당 location의 stores 삭제
+      await supabase
+        .from('stores')
+        .delete()
+        .eq('location_id', location.id);
+
+      // 2-3. location 삭제
+      await supabase
+        .from('locations')
+        .delete()
+        .eq('id', location.id);
+    }
+
+    // 3. Events 삭제 (CASCADE로 landing_pages, page_contents, event_images 자동 삭제됨)
     const { error: deleteError } = await supabase
       .from('events')
       .delete()
