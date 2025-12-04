@@ -338,13 +338,13 @@ export default function EditPage() {
                 이전
               </button>
             )}
-            <button
-              onClick={handleNext}
-              disabled={isSubmitting}
-              className="inline-flex h-10 items-center rounded-lg bg-blue-500 px-5 text-sm font-semibold text-white transition-colors hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? '저장 중...' : nextLabel}
-            </button>
+          <button
+            onClick={handleNext}
+            disabled={isSubmitting}
+            className="inline-flex h-10 items-center rounded-lg bg-blue-500 px-5 text-sm font-semibold text-white transition-colors hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? '저장 중...' : nextLabel}
+          </button>
           </div>
         </div>
       </section>

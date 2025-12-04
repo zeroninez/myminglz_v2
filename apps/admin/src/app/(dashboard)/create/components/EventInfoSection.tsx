@@ -448,10 +448,10 @@ const EventInfoSection = forwardRef<EventInfoSectionRef, EventInfoSectionProps>(
                       https://myminglz-v2-web.vercel.app/
                     </span>
                     <div className="flex-1 relative">
-                      <input
-                        id="domain-code"
-                        type="text"
-                        value={domainCode}
+                    <input
+                      id="domain-code"
+                      type="text"
+                      value={domainCode}
                         onChange={(e) => {
                           // 영어, 숫자, 하이픈만 허용
                           const value = e.target.value.replace(/[^a-zA-Z0-9-]/g, '');

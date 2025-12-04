@@ -755,6 +755,13 @@ const LandingPageSection = forwardRef<LandingPageSectionRef, LandingPageSectionP
                 <div className="flex flex-col gap-3 pr-1">
                   {pages.map((page) => {
                     const isActive = page.id === selectedPage;
+                    const pageSelection = pageSelections[page.id] || getDefaultSelectionForPage(page.id);
+                    const PageTemplate = templateComponentMap[pageSelection.pageType]?.[pageSelection.templateType];
+                    const pageDefaultValues = templateDefaultValues[pageSelection.pageType]?.[pageSelection.templateType] || {};
+                    const pageDesignValues = designValues[page.id] || {};
+                    const pageBgColor = globalBackgroundColor;
+                    const pageData = { ...pageDefaultValues, ...pageDesignValues, backgroundColor: pageBgColor };
+                    
                     return (
                       <div key={page.id} className="relative group">
                         <button
@@ -766,12 +773,32 @@ const LandingPageSection = forwardRef<LandingPageSectionRef, LandingPageSectionP
                           }`}
                         >
                           <div
-                            className={`h-24 w-16 rounded-2xl border ${
+                            className={`relative h-24 w-16 overflow-hidden rounded-2xl border ${
                               isActive
                                 ? 'border-blue-500 bg-white'
                                 : 'border-slate-200 bg-slate-100'
                             }`}
-                          />
+                          >
+                            {PageTemplate ? (
+                              <div 
+                                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+                                style={{ 
+                                  transform: 'translate(-50%, -50%) scale(0.25)',
+                                  width: '232px',
+                                  height: '470px',
+                                }}
+                              >
+                                <PageTemplate data={pageData} />
+                              </div>
+                            ) : (
+                              <div 
+                                className="flex h-full w-full items-center justify-center text-[8px] text-slate-400"
+                                style={{ backgroundColor: pageBgColor }}
+                              >
+                                {pageSelection.pageType || '미리보기'}
+                              </div>
+                            )}
+                          </div>
                           <span
                             className={`rounded-full px-3 py-1 text-[11px] font-medium ${
                               isActive ? 'bg-blue-500 text-white' : 'text-slate-500'
