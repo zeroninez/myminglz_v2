@@ -48,7 +48,10 @@ export async function GET(request: Request) {
     let dateRange: { start: Date; end: Date } | null = null;
     const now = new Date();
     
-    if (period === 'yesterday') {
+    if (period === 'all') {
+      // 전체 기간: dateRange를 null로 설정하여 모든 데이터 조회
+      dateRange = null;
+    } else if (period === 'yesterday') {
       const yesterday = new Date(now);
       yesterday.setDate(yesterday.getDate() - 1);
       yesterday.setHours(0, 0, 0, 0);
@@ -171,6 +174,9 @@ export async function GET(request: Request) {
             id: event.id,
             name: event.name,
             domainCode: event.domain_code,
+            startDate: event.start_date,
+            endDate: event.end_date,
+            storesCount: 0,
             conversionRate: 0,
             totalInflow,
             couponIssued: 0,
@@ -306,6 +312,9 @@ export async function GET(request: Request) {
             id: event.id,
             name: event.name,
             domainCode: event.domain_code,
+            startDate: event.start_date,
+            endDate: event.end_date,
+            storesCount: storeList.length,
             conversionRate,
             totalInflow,
             couponIssued,

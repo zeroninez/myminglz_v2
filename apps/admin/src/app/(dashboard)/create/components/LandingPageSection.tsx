@@ -295,7 +295,6 @@ const LandingPageSection = forwardRef<LandingPageSectionRef, LandingPageSectionP
             
             // Storage URL로 교체
             updatedDesignValues[pageNum][fieldId] = data.url;
-            console.log(`이미지 업로드 완료: ${fieldId} -> ${data.url}`);
           } catch (error: any) {
             console.error(`이미지 업로드 실패 (${fileKey}):`, error);
             throw error;

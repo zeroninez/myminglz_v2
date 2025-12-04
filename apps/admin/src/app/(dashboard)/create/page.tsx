@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import EventInfoSection from './components/EventInfoSection';
+import EventInfoSection, { type EventInfoSectionRef } from './components/EventInfoSection';
 import EventMissionSection from './components/EventMissionSection';
 import LandingPageSection, { type LandingPageSectionRef } from './components/LandingPageSection';
 import { convertPageBuilderToDB } from './utils/dataConverter';
@@ -42,6 +42,7 @@ export default function CreatePage() {
   
   // 각 섹션의 데이터를 저장할 ref
   const eventInfoDataRef = useRef<EventInfoData>({});
+  const eventInfoSectionRef = useRef<EventInfoSectionRef>(null);
   const eventMissionDataRef = useRef<EventMissionData>({});
   const landingPageDataRef = useRef<LandingPageData>({
     pageSelections: {},
@@ -50,7 +51,24 @@ export default function CreatePage() {
   });
   const landingPageSectionRef = useRef<LandingPageSectionRef>(null);
 
+  const handlePrevious = () => {
+    if (currentStep > 0) {
+      setCurrentStep((prev) => prev - 1);
+    }
+  };
+
   const handleNext = async () => {
+    // 스텝 1에서 다음으로 넘어가기 전 검증
+    if (currentStep === 0) {
+      if (eventInfoSectionRef.current) {
+        const validation = eventInfoSectionRef.current.validate();
+        if (!validation.isValid) {
+          alert(validation.error || '입력한 정보를 확인해주세요.');
+          return;
+        }
+      }
+    }
+
     if (currentStep < steps.length - 1) {
       setCurrentStep((prev) => prev + 1);
     } else {
@@ -171,18 +189,31 @@ export default function CreatePage() {
             })}
           </div>
 
-          <button
-            onClick={handleNext}
-            disabled={isSubmitting}
-            className="inline-flex h-10 items-center rounded-lg bg-blue-500 px-5 text-sm font-semibold text-white transition-colors hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isSubmitting ? '저장 중...' : nextLabel}
-          </button>
+          <div className="flex items-center gap-3">
+            {currentStep > 0 && (
+              <button
+                onClick={handlePrevious}
+                disabled={isSubmitting}
+                className="inline-flex h-10 items-center rounded-lg border border-gray-300 bg-white px-5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                이전
+              </button>
+            )}
+            <button
+              onClick={handleNext}
+              disabled={isSubmitting}
+              className="inline-flex h-10 items-center rounded-lg bg-blue-500 px-5 text-sm font-semibold text-white transition-colors hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? '저장 중...' : nextLabel}
+            </button>
+          </div>
         </div>
       </section>
 
       {currentStep === 0 && (
         <EventInfoSection
+          ref={eventInfoSectionRef}
+          initialData={Object.keys(eventInfoDataRef.current).length > 0 ? eventInfoDataRef.current : undefined}
           onDataChange={(data) => {
             eventInfoDataRef.current = { ...eventInfoDataRef.current, ...data };
           }}
@@ -190,6 +221,7 @@ export default function CreatePage() {
       )}
       {currentStep === 1 && (
         <EventMissionSection
+          initialData={Object.keys(eventMissionDataRef.current).length > 0 ? eventMissionDataRef.current : undefined}
           onDataChange={(data) => {
             eventMissionDataRef.current = { ...eventMissionDataRef.current, ...data };
           }}
@@ -198,6 +230,12 @@ export default function CreatePage() {
       {currentStep === 2 && (
         <LandingPageSection
           ref={landingPageSectionRef}
+          initialData={
+            Object.keys(landingPageDataRef.current.pageSelections).length > 0 || 
+            Object.keys(landingPageDataRef.current.designValues).length > 0
+              ? landingPageDataRef.current
+              : undefined
+          }
           onDataChange={(data) => {
             landingPageDataRef.current = data;
           }}

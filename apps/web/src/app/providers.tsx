@@ -12,9 +12,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
     if (supabaseUrl && supabaseKey) {
       CouponService.initialize(supabaseUrl, supabaseKey);
-      console.log('Supabase initialized');
-    } else {
-      console.warn('Supabase credentials not found in environment variables');
     }
   }, []);
 

@@ -114,12 +114,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('업로드 성공:', uploadData);
-
     // 공개 URL 가져오기
     const { data: urlData } = supabase.storage.from('event-images').getPublicUrl(filePath);
-
-    console.log('공개 URL 생성:', urlData.publicUrl);
 
     return NextResponse.json({
       success: true,

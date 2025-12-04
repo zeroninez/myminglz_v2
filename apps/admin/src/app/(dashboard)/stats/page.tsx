@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 
-type TimePeriod = 'yesterday' | 'today' | 'thisWeek' | 'thisMonth';
+type TimePeriod = 'all' | 'yesterday' | 'today' | 'thisWeek' | 'thisMonth';
 type ChartType = 'all' | 'inflow' | 'issuance' | 'usage';
 
 interface Event {
@@ -29,6 +29,9 @@ interface EventStats {
   id: string;
   name: string;
   domainCode: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  storesCount?: number;
   conversionRate: number;
   totalInflow: number;
   couponIssued: number;
@@ -171,6 +174,20 @@ export default function StatsPage() {
     return num.toLocaleString('ko-KR');
   };
 
+  const formatDate = (dateString: string | null | undefined): string => {
+    if (!dateString) return '미설정';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return '미설정';
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    } catch {
+      return '미설정';
+    }
+  };
+
   // 차트 데이터 (선택된 이벤트 또는 전체)
   const chartData = selectedEventStats?.hourlyData || stats?.events[0]?.hourlyData || [];
   const maxValue = Math.max(
@@ -221,7 +238,7 @@ export default function StatsPage() {
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700">QR 코드 검색</label>
+            <label className="mb-2 block text-sm font-medium text-gray-700">QR 코드 검색 (?)</label>
             <input
               type="text"
               value={qrCode}
@@ -273,12 +290,13 @@ export default function StatsPage() {
       <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
         <div className="mb-4">
           <h2 className="text-xl font-bold text-gray-900">
-            이벤트 전체 통계 ({getCurrentDate()}일 기준)
+            이벤트 전체 통계 {selectedPeriod === 'all' ? '(전체 기간)' : `(${getCurrentDate()}일 기준)`}
           </h2>
         </div>
         <div className="flex gap-2">
-          {(['yesterday', 'today', 'thisWeek', 'thisMonth'] as TimePeriod[]).map((period) => {
+          {(['all', 'yesterday', 'today', 'thisWeek', 'thisMonth'] as TimePeriod[]).map((period) => {
             const labels: Record<TimePeriod, string> = {
+              all: '전체 기간',
               yesterday: '어제',
               today: '오늘',
               thisWeek: '이번주',
@@ -308,73 +326,139 @@ export default function StatsPage() {
           <span className="ml-3 text-gray-600">통계 데이터 로딩 중...</span>
         </div>
       ) : stats ? (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          {/* 최고 성과 이벤트 */}
+        selectedEvent !== '전체' && selectedEventStats ? (
+          // 단일 이벤트 선택 시: 피그마 형식
           <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-            {stats.bestEvent ? (
-              <>
-                <h3 className="mb-4 text-lg font-semibold text-gray-900">
-                  최고 성과 이벤트: {stats.bestEvent.name}
-                </h3>
-                <div className="space-y-4">
-                  <div>
-                    <div className="mb-1 text-sm text-gray-600">전환율(%)</div>
-                    <div className="text-2xl font-bold text-gray-900">{stats.bestEvent.conversionRate}%</div>
-                  </div>
-                  <div>
-                    <div className="mb-1 text-sm text-gray-600">총 유입 수</div>
-                    <div className="text-2xl font-bold text-gray-900">{formatNumber(stats.bestEvent.totalInflow)}</div>
-                  </div>
-                  <div>
-                    <div className="mb-1 text-sm text-gray-600">쿠폰 발급 수</div>
-                    <div className="text-2xl font-bold text-gray-900">{formatNumber(stats.bestEvent.couponIssued)}</div>
-                  </div>
-                  <div>
-                    <div className="mb-1 text-sm text-gray-600">쿠폰 사용 수</div>
-                    <div className="text-2xl font-bold text-gray-900">{formatNumber(stats.bestEvent.couponUsed)}</div>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <p>최고 성과 이벤트 데이터가 없습니다.</p>
+            {/* 이벤트 정보 헤더 */}
+            <div className="mb-6 rounded-lg bg-gray-100 px-4 py-3">
+              <div className="flex flex-wrap items-center gap-4 text-sm text-gray-700">
+                <span className="font-medium">
+                  이벤트 이름 : <span className="font-normal">{selectedEventStats.name}</span>
+                </span>
+                <span className="font-medium">
+                  이벤트 기간: <span className="font-normal">
+                    {selectedEventStats.startDate && selectedEventStats.endDate
+                      ? `${formatDate(selectedEventStats.startDate)} ~ ${formatDate(selectedEventStats.endDate)}`
+                      : '미설정'}
+                  </span>
+                </span>
+                <span className="font-medium">
+                  사용처 : <span className="font-normal">{selectedEventStats.storesCount || 0} Places</span>
+                </span>
               </div>
-            )}
-          </section>
+            </div>
 
-          {/* 최저 성과 이벤트 */}
-          <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-            {stats.worstEvent ? (
-              <>
-                <h3 className="mb-4 text-lg font-semibold text-gray-900">
-                  최저 성과 이벤트: {stats.worstEvent.name}
-                </h3>
-                <div className="space-y-4">
-                  <div>
-                    <div className="mb-1 text-sm text-gray-600">전환율(%)</div>
-                    <div className="text-2xl font-bold text-gray-900">{stats.worstEvent.conversionRate}%</div>
-                  </div>
-                  <div>
-                    <div className="mb-1 text-sm text-gray-600">총 유입 수</div>
-                    <div className="text-2xl font-bold text-gray-900">{formatNumber(stats.worstEvent.totalInflow)}</div>
-                  </div>
-                  <div>
-                    <div className="mb-1 text-sm text-gray-600">쿠폰 발급 수</div>
-                    <div className="text-2xl font-bold text-gray-900">{formatNumber(stats.worstEvent.couponIssued)}</div>
-                  </div>
-                  <div>
-                    <div className="mb-1 text-sm text-gray-600">쿠폰 사용 수</div>
-                    <div className="text-2xl font-bold text-gray-900">{formatNumber(stats.worstEvent.couponUsed)}</div>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <p>최저 성과 이벤트 데이터가 없습니다.</p>
+            {/* 평균 이벤트 현황 */}
+            <div>
+              <h3 className="mb-4 text-lg font-semibold text-gray-900">평균 이벤트 현황</h3>
+              <div className="overflow-hidden rounded-lg border border-gray-200">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="border-b border-gray-200 px-6 py-3 text-left text-sm font-semibold text-gray-700">
+                        전환율(%)
+                      </th>
+                      <th className="border-b border-r border-l border-gray-200 px-6 py-3 text-left text-sm font-semibold text-gray-700">
+                        총 유입 수
+                      </th>
+                      <th className="border-b border-r border-gray-200 px-6 py-3 text-left text-sm font-semibold text-gray-700">
+                        쿠폰 발급 수
+                      </th>
+                      <th className="border-b border-gray-200 px-6 py-3 text-left text-sm font-semibold text-gray-700">
+                        쿠폰 사용 수
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="bg-white">
+                      <td className="px-6 py-4 text-base font-medium text-gray-900">
+                        {selectedEventStats.conversionRate}%
+                      </td>
+                      <td className="border-l border-r border-gray-200 px-6 py-4 text-base font-medium text-gray-900">
+                        {formatNumber(selectedEventStats.totalInflow)}
+                      </td>
+                      <td className="border-r border-gray-200 px-6 py-4 text-base font-medium text-gray-900">
+                        {formatNumber(selectedEventStats.couponIssued)}
+                      </td>
+                      <td className="px-6 py-4 text-base font-medium text-gray-900">
+                        {formatNumber(selectedEventStats.couponUsed)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
-            )}
+            </div>
           </section>
-        </div>
+        ) : (
+          // 전체 조회 시: 최고/최저 성과 이벤트
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            {/* 최고 성과 이벤트 */}
+            <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+              {stats.bestEvent ? (
+                <>
+                  <h3 className="mb-4 text-lg font-semibold text-gray-900">
+                    최고 성과 이벤트: {stats.bestEvent.name}
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <div className="mb-1 text-sm text-gray-600">전환율(%)</div>
+                      <div className="text-2xl font-bold text-gray-900">{stats.bestEvent.conversionRate}%</div>
+                    </div>
+                    <div>
+                      <div className="mb-1 text-sm text-gray-600">총 유입 수</div>
+                      <div className="text-2xl font-bold text-gray-900">{formatNumber(stats.bestEvent.totalInflow)}</div>
+                    </div>
+                    <div>
+                      <div className="mb-1 text-sm text-gray-600">쿠폰 발급 수</div>
+                      <div className="text-2xl font-bold text-gray-900">{formatNumber(stats.bestEvent.couponIssued)}</div>
+                    </div>
+                    <div>
+                      <div className="mb-1 text-sm text-gray-600">쿠폰 사용 수</div>
+                      <div className="text-2xl font-bold text-gray-900">{formatNumber(stats.bestEvent.couponUsed)}</div>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <p>최고 성과 이벤트 데이터가 없습니다.</p>
+                </div>
+              )}
+            </section>
+
+            {/* 최저 성과 이벤트 */}
+            <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+              {stats.worstEvent ? (
+                <>
+                  <h3 className="mb-4 text-lg font-semibold text-gray-900">
+                    최저 성과 이벤트: {stats.worstEvent.name}
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <div className="mb-1 text-sm text-gray-600">전환율(%)</div>
+                      <div className="text-2xl font-bold text-gray-900">{stats.worstEvent.conversionRate}%</div>
+                    </div>
+                    <div>
+                      <div className="mb-1 text-sm text-gray-600">총 유입 수</div>
+                      <div className="text-2xl font-bold text-gray-900">{formatNumber(stats.worstEvent.totalInflow)}</div>
+                    </div>
+                    <div>
+                      <div className="mb-1 text-sm text-gray-600">쿠폰 발급 수</div>
+                      <div className="text-2xl font-bold text-gray-900">{formatNumber(stats.worstEvent.couponIssued)}</div>
+                    </div>
+                    <div>
+                      <div className="mb-1 text-sm text-gray-600">쿠폰 사용 수</div>
+                      <div className="text-2xl font-bold text-gray-900">{formatNumber(stats.worstEvent.couponUsed)}</div>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <p>최저 성과 이벤트 데이터가 없습니다.</p>
+                </div>
+              )}
+            </section>
+          </div>
+        )
       ) : null}
 
       {/* 시간대별 이벤트 현황 */}

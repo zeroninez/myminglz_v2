@@ -191,13 +191,17 @@ export default function EventLandingPage() {
 
       // event_info_config에서 설정 가져오기
       const couponUsage = eventData.event_info_config?.coupon_usage || 'later';
+      const isHostSameAsStore = eventData.event_info_config?.is_host_same_as_store || false;
       
       // Stores 정보 가져오기 (DB의 stores 테이블에서)
       const stores = eventData.stores || [];
       
-      // 첫 번째 store의 slug 사용 (없으면 domain_code를 location slug로 사용)
+      // 이벤트 주최 = 사용처인 경우, 도메인 코드를 store slug로 사용
+      // 일반적인 경우, 첫 번째 store의 slug 사용 (없으면 domain_code 사용)
       const firstStore = stores[0];
-      const storeSlug = firstStore?.slug || domainCode || 'default';
+      const storeSlug = isHostSameAsStore 
+        ? domainCode  // 주최=사용처인 경우 도메인 코드를 store slug로 사용
+        : (firstStore?.slug || domainCode || 'default');
       const locationSlug = domainCode; // location slug는 항상 domain_code
       
       console.log('🔍 Store 정보:', {

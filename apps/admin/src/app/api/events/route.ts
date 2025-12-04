@@ -153,15 +153,50 @@ export async function POST(request: Request) {
     }
 
     // 1.6. Stores 생성 (event_info_config.stores를 stores 테이블에 저장)
-    if (body.event_info_config?.stores && Array.isArray(body.event_info_config.stores) && body.event_info_config.stores.length > 0) {
-      // Location ID 조회 (방금 생성한 location 또는 기존 location)
-      const { data: location } = await supabase
-        .from('locations')
-        .select('id')
-        .eq('slug', domain_code)
-        .single();
+    // Location ID 조회 (방금 생성한 location 또는 기존 location)
+    const { data: location } = await supabase
+      .from('locations')
+      .select('id')
+      .eq('slug', domain_code)
+      .single();
 
-      if (location) {
+    if (location) {
+      // 이벤트 주최 = 사용처인 경우, 도메인 코드로 store 자동 생성
+      if (body.event_info_config?.is_host_same_as_store) {
+        const storeName = body.name || '이벤트 주최처';
+        const storeSlug = domain_code; // 도메인 코드를 slug로 사용
+        
+        // 기존 store가 있는지 확인
+        const { data: existingStore } = await supabase
+          .from('stores')
+          .select('id')
+          .eq('slug', storeSlug)
+          .eq('location_id', location.id)
+          .single();
+
+        if (!existingStore) {
+          // Store 생성 (도메인 코드를 slug로 사용)
+          const { error: storeError } = await supabase
+            .from('stores')
+            .insert({
+              name: storeName,
+              slug: storeSlug,
+              location_id: location.id,
+              description: JSON.stringify({ is_host_store: true }),
+              is_active: true,
+            });
+
+          if (storeError) {
+            console.error('Store 생성 오류 (주최=사용처):', storeError);
+            console.warn('Store 생성에 실패했지만 이벤트는 생성되었습니다:', storeError.message);
+          } else {
+            console.log('✅ Store 자동 생성 성공 (주최=사용처):', storeSlug);
+          }
+        } else {
+          console.log('Store 이미 존재 (주최=사용처):', storeSlug);
+        }
+      } else if (body.event_info_config?.stores && Array.isArray(body.event_info_config.stores) && body.event_info_config.stores.length > 0) {
+        // 일반적인 사용처 등록
         const storesData = body.event_info_config.stores
           .filter((store: any) => store.name && store.name.trim()) // name이 있는 것만
           .map((store: any, index: number) => {
@@ -184,9 +219,6 @@ export async function POST(request: Request) {
           });
 
         if (storesData.length > 0) {
-          // 기존 stores 삭제 (이벤트와 연결된 stores가 있다면)
-          // 일단 새로 생성만 하고, 나중에 업데이트 로직 추가 가능
-          
           const { error: storesError } = await supabase
             .from('stores')
             .insert(storesData);
@@ -198,9 +230,9 @@ export async function POST(request: Request) {
             console.log('✅ Stores 자동 생성 성공:', storesData.length, '개');
           }
         }
-      } else {
-        console.warn('Location을 찾을 수 없어 Stores를 생성할 수 없습니다.');
       }
+    } else {
+      console.warn('Location을 찾을 수 없어 Stores를 생성할 수 없습니다.');
     }
 
     // 2. 랜딩 페이지 생성
