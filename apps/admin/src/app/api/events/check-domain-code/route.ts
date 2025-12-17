@@ -19,7 +19,7 @@ export async function GET(request: Request) {
       );
     }
 
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const accessToken = cookieStore.get('sb-access-token')?.value;
 
     if (!accessToken) {

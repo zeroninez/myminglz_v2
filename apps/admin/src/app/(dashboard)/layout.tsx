@@ -10,7 +10,7 @@ interface DashboardLayoutProps {
 }
 
 export default async function DashboardLayout({ children }: DashboardLayoutProps) {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const accessToken = cookieStore.get('sb-access-token')?.value;
 
   if (!accessToken) {

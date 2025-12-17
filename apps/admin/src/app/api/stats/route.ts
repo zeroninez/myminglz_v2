@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 // 통계 데이터 조회
 export async function GET(request: Request) {
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const accessToken = cookieStore.get('sb-access-token')?.value;
 
     if (!accessToken) {

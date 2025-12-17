@@ -32,7 +32,7 @@ function generateSlugFromName(name: string, domainCode: string, index: number): 
 // 이벤트 생성
 export async function POST(request: Request) {
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const accessToken = cookieStore.get('sb-access-token')?.value;
 
     if (!accessToken) {
@@ -315,7 +315,7 @@ export async function POST(request: Request) {
 // 이벤트 목록 조회
 export async function GET(request: Request) {
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const accessToken = cookieStore.get('sb-access-token')?.value;
 
     if (!accessToken) {

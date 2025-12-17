@@ -11,7 +11,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export async function POST(request: NextRequest) {
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const accessToken = cookieStore.get('sb-access-token')?.value;
 
     if (!accessToken) {
