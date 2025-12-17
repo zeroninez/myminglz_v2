@@ -33,10 +33,11 @@ function generateSlugFromName(name: string, domainCode: string, index: number): 
 // 이벤트 상세 조회 (랜딩 페이지 및 콘텐츠 포함)
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const cookieStore = cookies();
+    const resolvedParams = await params;
+    const cookieStore = await cookies();
     const accessToken = cookieStore.get('sb-access-token')?.value;
 
     if (!accessToken) {
@@ -79,7 +80,7 @@ export async function GET(
       );
     }
 
-    const eventId = params.id;
+    const eventId = resolvedParams.id;
 
     // 이벤트 조회
     const { data: event, error: eventError } = await supabase
@@ -182,10 +183,11 @@ export async function GET(
 // 이벤트 수정
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const cookieStore = cookies();
+    const resolvedParams = await params;
+    const cookieStore = await cookies();
     const accessToken = cookieStore.get('sb-access-token')?.value;
 
     if (!accessToken) {
@@ -228,7 +230,7 @@ export async function PUT(
       );
     }
 
-    const eventId = params.id;
+    const eventId = resolvedParams.id;
     const body = await request.json();
 
     // 이벤트 소유권 확인
@@ -510,10 +512,11 @@ function extractStoragePath(url: string): string | null {
 // 이벤트 삭제
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const cookieStore = cookies();
+    const resolvedParams = await params;
+    const cookieStore = await cookies();
     const accessToken = cookieStore.get('sb-access-token')?.value;
 
     if (!accessToken) {
@@ -556,7 +559,7 @@ export async function DELETE(
       );
     }
 
-    const eventId = params.id;
+    const eventId = resolvedParams.id;
 
     // 이벤트 소유권 확인 및 domain_code 가져오기
     const { data: existingEvent } = await supabase

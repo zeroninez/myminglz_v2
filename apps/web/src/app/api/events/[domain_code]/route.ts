@@ -15,11 +15,10 @@ const supabase = createClient(
 
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ domain_code: string }> | { domain_code: string } }
+  { params }: { params: Promise<{ domain_code: string }> }
 ) {
   try {
-    // Next.js 15+에서는 params가 Promise일 수 있음
-    const resolvedParams = params instanceof Promise ? await params : params;
+    const resolvedParams = await params;
     const domainCode = resolvedParams.domain_code;
     
     console.log('🔍 API 호출 - domain_code:', domainCode);
