@@ -15,8 +15,8 @@ export async function GET(request: Request) {
       );
     }
 
-    // 인증된 Supabase 클라이언트 생성
-    const supabase = createClient(
+    // 인증된 Supabase 클라이언트 생성 (관리자는 service_role 키 사용 가능)
+    let supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL || '',
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
       {
@@ -38,11 +38,48 @@ export async function GET(request: Request) {
     }
 
     const userId = userData.user.id;
+    
+    // 사용자 role 확인 (관리자 체크)
+    const { data: profileData } = await supabase
+      .from('user_profiles')
+      .select('role')
+      .eq('user_id', userId)
+      .single();
+    const userRole = profileData?.role || 'user';
+    const isAdmin = userRole === 'admin' || userData.user.email === 'admin@zeroninez.com';
+    
+    // 관리자이고 모든 사용자 통계 조회 시 service_role 키 사용 (RLS 우회)
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (isAdmin && serviceRoleKey) {
+      supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+        serviceRoleKey,
+        {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false,
+          },
+        }
+      );
+    }
+    
+    console.log('통계 API - 관리자 체크:', { 
+      userId, 
+      email: userData.user.email, 
+      userRole, 
+      profileRole: profileData?.role,
+      isAdmin,
+      usingServiceRole: isAdmin && !!serviceRoleKey
+    });
+    
     const { searchParams } = new URL(request.url);
     const eventId = searchParams.get('eventId');
     const period = searchParams.get('period') || 'today';
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
+    const allUsers = searchParams.get('all') === 'true'; // 관리자가 모든 사용자 통계 조회할 때
+    
+    console.log('통계 API - isAdmin:', isAdmin, 'userRole:', userRole, 'email:', userData.user.email, 'allUsers:', allUsers);
 
     // 날짜 범위 계산
     let dateRange: { start: Date; end: Date } | null = null;
@@ -99,16 +136,37 @@ export async function GET(request: Request) {
 
 
     // 이벤트 목록 가져오기 (필터 조건)
+    // 관리자이고 all=true 파라미터가 있으면 모든 사용자의 이벤트 조회 (admin 제외)
     let query = supabase
       .from('events')
-      .select('id, name, domain_code, start_date, end_date, created_at')
-      .eq('user_id', userId);
+      .select('id, name, domain_code, start_date, end_date, created_at, user_id');
+
+    if (isAdmin && allUsers) {
+      // 관리자는 모든 사용자의 이벤트 조회하되, admin role을 가진 사용자의 이벤트는 제외
+      // admin user_id 목록 가져오기
+      const { data: adminProfiles } = await supabase
+        .from('user_profiles')
+        .select('user_id')
+        .eq('role', 'admin');
+      
+      const adminUserIds = (adminProfiles || []).map(p => p.user_id);
+      
+      // admin user_id를 제외 (각각 neq로 필터링)
+      adminUserIds.forEach((adminId) => {
+        query = query.neq('user_id', adminId);
+      });
+    } else {
+      // 일반 사용자는 자신의 이벤트만 조회
+      query = query.eq('user_id', userId);
+    }
 
     if (eventId && eventId !== '전체') {
       query = query.eq('id', eventId);
     }
 
     const { data: events, error: eventsError } = await query.order('created_at', { ascending: false });
+
+    console.log('이벤트 조회 결과 - events.length:', events?.length, 'error:', eventsError);
 
     if (eventsError) {
       console.error('이벤트 조회 오류:', eventsError);
@@ -118,36 +176,56 @@ export async function GET(request: Request) {
       );
     }
 
+    // 디버깅: events에 user_id가 포함되어 있는지 확인
+    if (events && events.length > 0) {
+      console.log('조회된 이벤트 개수:', events.length);
+      console.log('첫 번째 이벤트의 user_id:', (events[0] as any).user_id);
+    } else {
+      console.log('조회된 이벤트가 없습니다. isAdmin:', isAdmin, 'allUsers:', allUsers);
+    }
+
+    // 사용자 정보를 가져오기 (관리자가 모든 사용자 조회할 때)
+    // auth.users는 직접 조회 불가하므로, service_role 키가 필요하지만
+    // 일단 user_id만 포함하고, 클라이언트에서 별도로 조회하도록 함
+
+    // 배치로 모든 location 조회 (성능 최적화)
+    const domainCodes = [...new Set((events || []).map(e => e.domain_code).filter(Boolean))];
+    const { data: allLocations } = await supabase
+      .from('locations')
+      .select('id, slug')
+      .in('slug', domainCodes);
+    
+    const locationMap = new Map((allLocations || []).map(loc => [loc.slug, loc.id]));
+
     // 이벤트별 통계 데이터 계산
     const eventsWithStats = await Promise.all(
       (events || []).map(async (event) => {
-        // event의 domain_code를 location slug로 사용하여 location 찾기
-        const { data: location } = await supabase
-          .from('locations')
-          .select('id')
-          .eq('slug', event.domain_code)
-          .single();
+        // location 맵에서 조회 (개별 쿼리 대신)
+        const locationId = locationMap.get(event.domain_code);
+        const location = locationId ? { id: locationId } : null;
 
         // 유입 수 조회 (페이지 방문 로그)
         let visitQuery = supabase
           .from('page_visits')
-          .select('visited_at')
+          .select('visited_at', { count: 'exact' })
           .eq('event_id', event.id);
 
+        // dateRange가 null이면 전체 기간 조회 (필터 없음)
         if (dateRange) {
           visitQuery = visitQuery
             .gte('visited_at', dateRange.start.toISOString())
             .lte('visited_at', dateRange.end.toISOString());
         }
 
-        const { data: visits, error: visitsError } = await visitQuery;
+        const { data: visits, error: visitsError, count: visitCount } = await visitQuery;
 
         if (visitsError) {
           console.error('방문 로그 조회 오류:', visitsError);
         }
 
         const visitList = visits || [];
-        const totalInflow = visitList.length;
+        // count가 있으면 사용, 없으면 배열 길이 사용
+        const totalInflow = visitCount !== null && visitCount !== undefined ? visitCount : visitList.length;
 
         if (!location) {
           // 시간대별 유입 수 집계
@@ -170,6 +248,11 @@ export async function GET(request: Request) {
             };
           });
 
+          const eventUserId = (event as any).user_id;
+          if (!eventUserId) {
+            console.warn('이벤트에 user_id가 없습니다 (location 없음):', event.id, event.name);
+          }
+          
           return {
             id: event.id,
             name: event.name,
@@ -183,13 +266,14 @@ export async function GET(request: Request) {
             couponUsed: 0,
             hourlyData: hourlyInflow,
             storeStats: [],
+            userId: eventUserId || null, // 관리자용
           };
         }
 
-        // 쿠폰 발급 수 조회 (날짜 범위 필터 적용)
+        // 쿠폰 발급 수 조회 (날짜 범위 필터 적용, count만 사용하여 성능 최적화)
         let couponQuery = supabase
           .from('coupons')
-          .select('id, created_at, is_used, used_at', { count: 'exact' })
+          .select('created_at, is_used, used_at', { count: 'exact', head: false })
           .eq('location_id', location.id);
 
         if (dateRange) {
@@ -198,14 +282,15 @@ export async function GET(request: Request) {
             .lte('created_at', dateRange.end.toISOString());
         }
 
-        const { data: coupons, error: couponsError } = await couponQuery;
+        const { data: coupons, error: couponsError, count: couponCount } = await couponQuery;
 
         if (couponsError) {
           console.error('쿠폰 조회 오류:', couponsError);
         }
 
         const couponList = coupons || [];
-        const couponIssued = couponList.length;
+        // count가 있으면 사용, 없으면 배열 길이 사용
+        const couponIssued = couponCount !== null && couponCount !== undefined ? couponCount : couponList.length;
         const couponUsed = couponList.filter((c) => c.is_used).length;
         const conversionRate = couponIssued > 0 ? Math.round((couponUsed / couponIssued) * 100 * 100) / 100 : 0;
 
@@ -308,6 +393,11 @@ export async function GET(request: Request) {
           };
         });
 
+          const eventUserId = (event as any).user_id;
+          if (!eventUserId) {
+            console.warn('이벤트에 user_id가 없습니다:', event.id, event.name);
+          }
+          
           return {
             id: event.id,
             name: event.name,
@@ -321,6 +411,7 @@ export async function GET(request: Request) {
             couponUsed,
             hourlyData,
             storeStats: storeStats || [],
+            userId: eventUserId || null, // 관리자용
           };
       })
     );
@@ -380,9 +471,35 @@ export async function GET(request: Request) {
       }
     }
 
+    // 관리자가 모든 사용자 통계를 조회할 때, userId별 이메일 정보 추가
+    let userEmailMap: Record<string, string> = {};
+    if (isAdmin && allUsers && eventsWithStats.length > 0) {
+      // 고유한 userId 목록 추출
+      const uniqueUserIds = [...new Set(eventsWithStats.map(e => e.userId).filter(Boolean))];
+      
+      // 각 userId에 대해 이메일 조회
+      // Supabase Admin API를 사용하려면 service_role 키가 필요하지만,
+      // 현재는 anon_key만 사용 가능하므로, 각 userId에 대해 getUser를 호출해봅니다.
+      // 하지만 이 방법은 해당 사용자의 토큰이 필요하므로 작동하지 않을 수 있습니다.
+      // 대안: events 테이블과 user_profiles 테이블을 조인하거나,
+      // 별도의 사용자 정보 조회 API를 만들거나,
+      // 또는 클라이언트에서 각 userId에 대해 개별 조회
+      
+      // 일단 userId 목록만 반환하고, 클라이언트에서 처리하도록 함
+      // TODO: service_role 키를 사용하여 Admin API로 이메일 조회
+    }
+
+    // 디버깅: userId 포함 여부 확인
+    if (isAdmin && allUsers && eventsWithStats.length > 0) {
+      console.log('관리자 통계 응답 - 첫 번째 이벤트:', JSON.stringify(eventsWithStats[0], null, 2));
+    }
+
     return NextResponse.json({
       success: true,
-      data: stats,
+      data: {
+        ...stats,
+        userEmailMap, // userId -> email 매핑 (현재는 비어있음)
+      },
     });
   } catch (error: any) {
     console.error('통계 조회 중 오류:', error);

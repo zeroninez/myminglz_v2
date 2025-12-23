@@ -41,6 +41,15 @@ export async function POST(request: Request) {
 
     console.log('✅ 로그인 성공:', data.user.id);
 
+    // user_profiles에서 role 가져오기
+    let userRole = 'user';
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('role')
+      .eq('user_id', data.user.id)
+      .single();
+    userRole = profile?.role || 'user';
+
     // 세션 토큰을 쿠키에 저장
     const response = NextResponse.json({
       success: true,
@@ -49,6 +58,7 @@ export async function POST(request: Request) {
         id: data.user.id,
         email: data.user.email,
         name: data.user.user_metadata?.name,
+        role: userRole,
       },
     });
 

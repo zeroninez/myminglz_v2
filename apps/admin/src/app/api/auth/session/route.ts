@@ -37,6 +37,17 @@ export async function GET() {
           );
         }
 
+        // user_profiles에서 role 가져오기
+        let userRole = 'user';
+        if (refreshData.user?.id) {
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('role')
+            .eq('user_id', refreshData.user.id)
+            .single();
+          userRole = profile?.role || 'user';
+        }
+
         // 새 토큰 저장
         const response = NextResponse.json({
           success: true,
@@ -44,6 +55,7 @@ export async function GET() {
             id: refreshData.user?.id,
             email: refreshData.user?.email,
             name: refreshData.user?.user_metadata?.name,
+            role: userRole,
           },
         });
 
@@ -72,12 +84,22 @@ export async function GET() {
       );
     }
 
+    // user_profiles에서 role 가져오기
+    let userRole = 'user';
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('role')
+      .eq('user_id', data.user.id)
+      .single();
+    userRole = profile?.role || 'user';
+
     return NextResponse.json({
       success: true,
       user: {
         id: data.user.id,
         email: data.user.email,
         name: data.user.user_metadata?.name,
+        role: userRole,
       },
     });
   } catch (error) {

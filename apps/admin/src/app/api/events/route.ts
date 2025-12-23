@@ -349,24 +349,92 @@ export async function GET(request: Request) {
 
     const userId = userData.user.id;
 
-    // 사용자의 이벤트 목록 조회
-    const { data: events, error: eventsError } = await supabase
-      .from('events')
-      .select('id, name, domain_code, start_date, end_date, event_info_config, created_at, updated_at')
+    // 사용자 role 확인 (관리자 체크)
+    const { data: profileData } = await supabase
+      .from('user_profiles')
+      .select('role')
       .eq('user_id', userId)
-      .order('created_at', { ascending: false });
+      .single();
+    const userRole = profileData?.role || 'user';
+    const isAdmin = userRole === 'admin' || userData.user.email === 'admin@zeroninez.com';
+
+    // 관리자 파라미터 확인
+    const { searchParams } = new URL(request.url);
+    const allEvents = searchParams.get('all') === 'true';
+
+    // 이벤트 목록 조회 (관리자용으로 user_id도 포함)
+    let query = supabase
+      .from('events')
+      .select('id, name, domain_code, start_date, end_date, event_info_config, created_at, updated_at, user_id');
+
+    // 관리자이고 all=true 파라미터가 있으면 모든 이벤트 조회, 아니면 자신의 이벤트만
+    if (isAdmin && allEvents) {
+      // 모든 이벤트 조회 (user_id 필터 없음)
+    } else {
+      // 자신의 이벤트만 조회
+      query = query.eq('user_id', userId);
+    }
+
+    const { data: events, error: eventsError } = await query.order('created_at', { ascending: false });
 
     if (eventsError) {
       console.error('이벤트 조회 오류:', eventsError);
+      console.error('에러 상세:', JSON.stringify(eventsError, null, 2));
       return NextResponse.json(
-        { success: false, error: '이벤트 조회에 실패했습니다.' },
+        { 
+          success: false, 
+          error: '이벤트 조회에 실패했습니다.',
+          details: eventsError.message || String(eventsError),
+          code: eventsError.code
+        },
         { status: 500 }
       );
     }
 
+    // 관리자가 모든 이벤트를 조회할 때 사용자 이메일 포함
+    let eventsWithEmails = events || [];
+    if (isAdmin && allEvents && events && events.length > 0) {
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (serviceRoleKey) {
+        const adminSupabase = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+          serviceRoleKey,
+          {
+            auth: {
+              autoRefreshToken: false,
+              persistSession: false,
+            },
+          }
+        );
+
+        const userIds = [...new Set(events.map(e => (e as any).user_id).filter(Boolean))];
+        const emailMap: Record<string, string> = {};
+
+        // 병렬로 모든 사용자 이메일 조회
+        await Promise.all(
+          userIds.map(async (uid) => {
+            try {
+              const { data: user } = await adminSupabase.auth.admin.getUserById(uid);
+              if (user?.user?.email) {
+                emailMap[uid] = user.user.email;
+              }
+            } catch (error) {
+              console.error(`사용자 ${uid} 이메일 조회 실패:`, error);
+            }
+          })
+        );
+
+        // 각 이벤트에 이메일 추가
+        eventsWithEmails = events.map((event) => ({
+          ...event,
+          userEmail: (event as any).user_id ? emailMap[(event as any).user_id] : undefined,
+        }));
+      }
+    }
+
     return NextResponse.json({
       success: true,
-      data: events || [],
+      data: eventsWithEmails,
     });
   } catch (error: any) {
     console.error('이벤트 조회 중 오류:', error);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 type TimePeriod = 'all' | 'yesterday' | 'today' | 'thisWeek' | 'thisMonth';
 type ChartType = 'all' | 'inflow' | 'issuance' | 'usage';
@@ -72,8 +72,8 @@ export default function StatsPage() {
   const [selectedEvent, setSelectedEvent] = useState<string>('전체');
   const [qrCode, setQrCode] = useState<string>('');
   const [dateRange, setDateRange] = useState<string>('전체');
-  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('today');
-  const [chartType, setChartType] = useState<ChartType>('inflow');
+  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('all');
+  const [chartType, setChartType] = useState<ChartType>('all');
   const [stats, setStats] = useState<StatsData | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
   const [selectedEventStats, setSelectedEventStats] = useState<EventStats | null>(null);
@@ -91,6 +91,8 @@ export default function StatsPage() {
 
         if (!result.success) {
           console.error('이벤트 목록 로드 오류:', result.error);
+          console.error('에러 상세:', result.details);
+          console.error('에러 코드:', result.code);
           setEvents([]);
           return;
         }
@@ -109,7 +111,7 @@ export default function StatsPage() {
   }, []);
 
   // 통계 데이터 가져오기
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       setStatsLoading(true);
       const params = new URLSearchParams({
@@ -140,14 +142,14 @@ export default function StatsPage() {
     } finally {
       setStatsLoading(false);
     }
-  };
+  }, [selectedEvent, selectedPeriod, dateRange]);
 
-  // 필터 변경 시 통계 데이터 다시 가져오기
+  // 이벤트 로드 완료 시 및 필터 변경 시 통계 데이터 자동 조회
   useEffect(() => {
     if (events.length > 0) {
       fetchStats();
     }
-  }, [selectedEvent, selectedPeriod, dateRange]);
+  }, [events.length, fetchStats]);
 
   // 선택된 이벤트가 변경되면 store 필터 초기화
   useEffect(() => {
@@ -166,8 +168,8 @@ export default function StatsPage() {
     setSelectedEvent('전체');
     setQrCode('');
     setDateRange('전체');
-    setSelectedPeriod('today');
-    setChartType('inflow');
+    setSelectedPeriod('all');
+    setChartType('all');
   };
 
   const formatNumber = (num: number) => {
