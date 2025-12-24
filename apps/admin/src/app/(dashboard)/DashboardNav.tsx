@@ -8,9 +8,9 @@ interface DashboardNavProps {
 }
 
 const regularNavItems = [
-  { href: '/create', label: '생성' },
-  { href: '/stats', label: '통계' },
-  { href: '/manage', label: '관리' },
+  { href: '/create', label: '생성'},
+  { href: '/stats', label: '통계'},
+  { href: '/manage', label: '관리'},
 ];
 
 const adminNavItems = [
@@ -23,26 +23,25 @@ export default function DashboardNav({ isAdmin = false }: DashboardNavProps) {
   const navItems = isAdmin ? adminNavItems : regularNavItems;
 
   return (
-    <nav className="flex gap-4 border-b border-gray-200 bg-white px-4 sm:px-6 lg:px-8">
-      {navItems.map((item) => {
-        const isActive = pathname === item.href || (item.href === '/dashboard' && pathname === '/');
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={`relative px-4 py-3 text-sm font-medium transition-colors ${
-              isActive
-                ? 'text-gray-900'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            {item.label}
-            {isActive && (
-              <span className="absolute inset-x-0 -bottom-px h-0.5 bg-gray-900" />
-            )}
-          </Link>
-        );
-      })}
+    <nav className="w-64 min-h-[calc(100vh-73px)]" style={{ backgroundColor: '#6C7885' }}>
+      <div className="flex flex-col py-4">
+        {navItems.map((item) => {
+          const isActive = pathname === item.href || (item.href === '/dashboard' && pathname === '/');
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`flex items-center gap-3 px-6 py-3 text-sm font-medium transition-colors ${
+                isActive
+                  ? 'text-white'
+                  : 'text-white hover:opacity-80'
+              }`}
+            >
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+      </div>
     </nav>
   );
 }

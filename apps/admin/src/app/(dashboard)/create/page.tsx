@@ -33,9 +33,10 @@ interface LandingPageData {
 export default function CreatePage() {
   const router = useRouter();
   const steps = [
-    { number: 1, title: '이벤트 정보' },
-    { number: 2, title: '이벤트 미션' },
-    { number: 3, title: '랜딩 페이지' },
+    { number: 1, title: '기본정보' },
+    { number: 2, title: '쿠폰 설정' },
+    { number: 3, title: '미션 설정' },
+    { number: 4, title: '랜딩 페이지' },
   ];
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -58,8 +59,8 @@ export default function CreatePage() {
   };
 
   const handleNext = async () => {
-    // 스텝 1에서 다음으로 넘어가기 전 검증
-    if (currentStep === 0) {
+    // 스텝 0, 1(기본정보, 사용처등록)에서 다음으로 넘어가기 전 검증
+    if (currentStep === 0 || currentStep === 1) {
       if (eventInfoSectionRef.current) {
         const validation = eventInfoSectionRef.current.validate();
         if (!validation.isValid) {
@@ -213,6 +214,7 @@ export default function CreatePage() {
       {currentStep === 0 && (
         <EventInfoSection
           ref={eventInfoSectionRef}
+          mode="basicInfo"
           initialData={Object.keys(eventInfoDataRef.current).length > 0 ? eventInfoDataRef.current : undefined}
           onDataChange={(data) => {
             eventInfoDataRef.current = { ...eventInfoDataRef.current, ...data };
@@ -220,6 +222,16 @@ export default function CreatePage() {
         />
       )}
       {currentStep === 1 && (
+        <EventInfoSection
+          ref={eventInfoSectionRef}
+          mode="storeRegistration"
+          initialData={Object.keys(eventInfoDataRef.current).length > 0 ? eventInfoDataRef.current : undefined}
+          onDataChange={(data) => {
+            eventInfoDataRef.current = { ...eventInfoDataRef.current, ...data };
+          }}
+        />
+      )}
+      {currentStep === 2 && (
         <EventMissionSection
           initialData={Object.keys(eventMissionDataRef.current).length > 0 ? eventMissionDataRef.current : undefined}
           onDataChange={(data) => {
@@ -227,7 +239,7 @@ export default function CreatePage() {
           }}
         />
       )}
-      {currentStep === 2 && (
+      {currentStep === 3 && (
         <LandingPageSection
           ref={landingPageSectionRef}
           initialData={

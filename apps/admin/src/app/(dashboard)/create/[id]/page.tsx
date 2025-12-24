@@ -36,9 +36,10 @@ export default function EditPage() {
   const eventId = params.id as string;
 
   const steps = [
-    { number: 1, title: '이벤트 정보' },
-    { number: 2, title: '이벤트 미션' },
-    { number: 3, title: '랜딩 페이지' },
+    { number: 1, title: '기본정보' },
+    { number: 2, title: '사용처등록' },
+    { number: 3, title: '이벤트 미션' },
+    { number: 4, title: '랜딩 페이지' },
   ];
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -174,8 +175,8 @@ export default function EditPage() {
   };
 
   const handleNext = async () => {
-    // 스텝 1에서 다음으로 넘어가기 전 검증
-    if (currentStep === 0) {
+    // 스텝 0, 1(기본정보, 사용처등록)에서 다음으로 넘어가기 전 검증
+    if (currentStep === 0 || currentStep === 1) {
       if (eventInfoSectionRef.current) {
         const validation = eventInfoSectionRef.current.validate();
         if (!validation.isValid) {
@@ -352,13 +353,24 @@ export default function EditPage() {
       {currentStep === 0 && initialEventInfo && (
         <EventInfoSection
           ref={eventInfoSectionRef}
+          mode="basicInfo"
           initialData={Object.keys(eventInfoDataRef.current).length > 0 ? eventInfoDataRef.current : initialEventInfo}
           onDataChange={(data) => {
             eventInfoDataRef.current = { ...eventInfoDataRef.current, ...data };
           }}
         />
       )}
-      {currentStep === 1 && initialEventMission && (
+      {currentStep === 1 && initialEventInfo && (
+        <EventInfoSection
+          ref={eventInfoSectionRef}
+          mode="storeRegistration"
+          initialData={Object.keys(eventInfoDataRef.current).length > 0 ? eventInfoDataRef.current : initialEventInfo}
+          onDataChange={(data) => {
+            eventInfoDataRef.current = { ...eventInfoDataRef.current, ...data };
+          }}
+        />
+      )}
+      {currentStep === 2 && initialEventMission && (
         <EventMissionSection
           initialData={Object.keys(eventMissionDataRef.current).length > 0 ? eventMissionDataRef.current : initialEventMission}
           onDataChange={(data) => {
@@ -366,7 +378,7 @@ export default function EditPage() {
           }}
         />
       )}
-      {currentStep === 2 && initialLandingPage && (
+      {currentStep === 3 && initialLandingPage && (
         <LandingPageSection
           ref={landingPageSectionRef}
           initialData={Object.keys(landingPageDataRef.current.pageSelections).length > 0 || Object.keys(landingPageDataRef.current.designValues).length > 0 

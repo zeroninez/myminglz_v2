@@ -53,6 +53,7 @@ interface EventInfoSectionProps {
     coupon_preview_image_url?: string;
     event_info_config?: any;
   }) => void;
+  mode?: 'basicInfo' | 'storeRegistration' | 'all';
 }
 
 export interface EventInfoSectionRef {
@@ -60,7 +61,7 @@ export interface EventInfoSectionRef {
 }
 
 const EventInfoSection = forwardRef<EventInfoSectionRef, EventInfoSectionProps>(
-  ({ initialData, onDataChange }, ref) => {
+  ({ initialData, onDataChange, mode = 'all' }, ref) => {
   const [eventName, setEventName] = useState(initialData?.name || '');
   const [startDate, setStartDate] = useState(initialData?.start_date || '');
   const [endDate, setEndDate] = useState(initialData?.end_date || '');
@@ -303,44 +304,50 @@ const EventInfoSection = forwardRef<EventInfoSectionRef, EventInfoSectionProps>(
 
   // 검증 함수
   const validate = (): { isValid: boolean; error?: string } => {
-    // 1. 이벤트 이름 필수
-    if (!eventName || !eventName.trim()) {
-      return { isValid: false, error: '이벤트 이름을 입력해주세요.' };
+    // 기본정보 모드일 때만 기본정보 검증
+    if (mode === 'basicInfo' || mode === 'all') {
+      // 1. 이벤트 이름 필수
+      if (!eventName || !eventName.trim()) {
+        return { isValid: false, error: '이벤트 이름을 입력해주세요.' };
+      }
+
+      // 2. 도메인 코드 필수
+      if (!domainCode || !domainCode.trim()) {
+        return { isValid: false, error: '도메인 주소를 입력해주세요.' };
+      }
+
+      // 3. 도메인 코드 중복 확인 (수정 모드가 아닌 경우)
+      if (!initialData?.domain_code) {
+        if (domainCodeChecking) {
+          return { isValid: false, error: '도메인 코드 확인 중입니다. 잠시 후 다시 시도해주세요.' };
+        }
+        if (domainCodeAvailable === false) {
+          return { isValid: false, error: '이미 사용 중인 도메인 코드입니다. 다른 도메인 코드를 입력해주세요.' };
+        }
+        // domainCodeAvailable이 null이고 도메인 코드가 입력되어 있으면 아직 확인 중이거나 확인되지 않은 상태
+        // 입력 후 충분한 시간이 지났다면 확인이 완료되어야 하므로, 확인되지 않은 경우 경고
+        if (domainCodeAvailable === null && domainCode.trim()) {
+          // 도메인 코드가 입력되어 있고, 아직 확인이 완료되지 않은 경우
+          // debounce 시간(500ms)이 지났다면 확인이 완료되어야 함
+          return { isValid: false, error: '도메인 코드 중복 확인이 완료되지 않았습니다. 잠시 후 다시 시도해주세요.' };
+        }
+      }
     }
 
-    // 2. 도메인 코드 필수
-    if (!domainCode || !domainCode.trim()) {
-      return { isValid: false, error: '도메인 주소를 입력해주세요.' };
-    }
-
-    // 3. 도메인 코드 중복 확인 (수정 모드가 아닌 경우)
-    if (!initialData?.domain_code) {
-      if (domainCodeChecking) {
-        return { isValid: false, error: '도메인 코드 확인 중입니다. 잠시 후 다시 시도해주세요.' };
-      }
-      if (domainCodeAvailable === false) {
-        return { isValid: false, error: '이미 사용 중인 도메인 코드입니다. 다른 도메인 코드를 입력해주세요.' };
-      }
-      // domainCodeAvailable이 null이고 도메인 코드가 입력되어 있으면 아직 확인 중이거나 확인되지 않은 상태
-      // 입력 후 충분한 시간이 지났다면 확인이 완료되어야 하므로, 확인되지 않은 경우 경고
-      if (domainCodeAvailable === null && domainCode.trim()) {
-        // 도메인 코드가 입력되어 있고, 아직 확인이 완료되지 않은 경우
-        // debounce 시간(500ms)이 지났다면 확인이 완료되어야 함
-        return { isValid: false, error: '도메인 코드 중복 확인이 완료되지 않았습니다. 잠시 후 다시 시도해주세요.' };
-      }
-    }
-
-    // 4. 이벤트 주최 = 사용처가 아닌 경우, 사용처 등록 필수
-    if (!isHostSameAsStore) {
-      if (stores.length === 0) {
-        return { isValid: false, error: '사용처를 최소 1개 이상 등록해주세요. 또는 "이벤트 주최 = 사용처"를 선택해주세요.' };
-      }
-      
-      // 각 사용처의 이름이 필수
-      for (let i = 0; i < stores.length; i++) {
-        const store = stores[i];
-        if (!store.name || !store.name.trim()) {
-          return { isValid: false, error: `사용처 ${i + 1}의 이름을 입력해주세요.` };
+    // 사용처 등록 모드일 때만 사용처 검증
+    if (mode === 'storeRegistration' || mode === 'all') {
+      // 4. 이벤트 주최 = 사용처가 아닌 경우, 사용처 등록 필수
+      if (!isHostSameAsStore) {
+        if (stores.length === 0) {
+          return { isValid: false, error: '사용처를 최소 1개 이상 등록해주세요. 또는 "이벤트 주최 = 사용처"를 선택해주세요.' };
+        }
+        
+        // 각 사용처의 이름이 필수
+        for (let i = 0; i < stores.length; i++) {
+          const store = stores[i];
+          if (!store.name || !store.name.trim()) {
+            return { isValid: false, error: `사용처 ${i + 1}의 이름을 입력해주세요.` };
+          }
         }
       }
     }
@@ -376,16 +383,40 @@ const EventInfoSection = forwardRef<EventInfoSectionRef, EventInfoSectionProps>(
     }
   }, [eventName, domainCode, startDate, endDate, isHostSameAsStore, couponUsage, stores, onDataChange]);
 
+  const showBasicInfo = mode === 'all' || mode === 'basicInfo';
+  const showStoreRegistration = mode === 'all' || mode === 'storeRegistration';
+
   return (
     <section className="space-y-6">
       <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <h3 className="text-lg font-semibold text-gray-900">이벤트 정보</h3>
-        <p className="mt-2 text-sm text-gray-500">
-          이벤트 이름, 기간, 도메인 주소와 함께 쿠폰 사용처를 등록합니다.
-        </p>
+        {mode === 'all' && (
+          <>
+            <h3 className="text-lg font-semibold text-gray-900">이벤트 정보</h3>
+            <p className="mt-2 text-sm text-gray-500">
+              이벤트 이름, 기간, 도메인 주소와 함께 쿠폰 사용처를 등록합니다.
+            </p>
+          </>
+        )}
+        {mode === 'basicInfo' && (
+          <>
+            <h3 className="text-lg font-semibold text-gray-900">기본 정보</h3>
+            <p className="mt-2 text-sm text-gray-500">
+              이벤트 이름, 기간, 도메인 주소를 입력합니다.
+            </p>
+          </>
+        )}
+        {mode === 'storeRegistration' && (
+          <>
+            <h3 className="text-lg font-semibold text-gray-900">사용처 등록</h3>
+            <p className="mt-2 text-sm text-gray-500">
+              쿠폰 사용이 가능한 매장/지점 정보를 등록합니다.
+            </p>
+          </>
+        )}
 
         <div className="mt-6">
           {/* 1. 기본 정보 - 좌우 분할 레이아웃 */}
+          {showBasicInfo && (
           <div className="grid gap-6 md:grid-cols-[1fr_360px]">
             {/* 좌측: 입력 폼 */}
             <div>
@@ -560,9 +591,11 @@ const EventInfoSection = forwardRef<EventInfoSectionRef, EventInfoSectionProps>(
               </div>
             </div>
           </div>
+          )}
 
           {/* 2. 사용처 등록 */}
-          <div className="mt-8">
+          {showStoreRegistration && (
+          <div className={showBasicInfo ? "mt-8" : ""}>
             <h4 className="text-sm font-semibold text-gray-800">2. 사용처 등록</h4>
             <p className="mt-1 text-xs text-gray-500">
               쿠폰 사용이 가능한 매장/지점 정보를 등록합니다.
@@ -721,52 +754,53 @@ const EventInfoSection = forwardRef<EventInfoSectionRef, EventInfoSectionProps>(
                 </button>
               </div>
             </div>
-          </div>
 
-          {/* 이벤트 미션 인증 QR (가로 배치) */}
-          {!isHostSameAsStore && stores.length > 0 && (
-            <div className="mt-8">
-              <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-                <h3 className="text-lg font-semibold text-gray-900">*이벤트 미션 인증 QR</h3>
-                <p className="mt-2 text-xs text-gray-600 leading-relaxed">
-                  해당 QR을 인쇄하여{' '}
-                  <span className="underline">이벤트 사용처에서 노출시켜야 합니다.</span>
-                </p>
-                
-                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {stores.map((store, index) => (
-                    <div key={store.id} className="flex flex-col items-center">
-                      <p className="text-sm font-medium text-gray-700 mb-2 text-center">
-                        사용처 {index + 1}: {store.name || '(이름 없음)'}
-                      </p>
-                      <div className="flex items-center justify-center">
-                        {storeQrLoading[store.id] ? (
-                          <div className="flex flex-col items-center justify-center h-32 w-32">
-                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mb-2"></div>
-                            <p className="text-xs text-gray-500">QR 생성 중...</p>
-                          </div>
-                        ) : store.qrCodeUrl ? (
-                          <div className="flex flex-col items-center">
-                            <div className="p-2 bg-white rounded-lg border-2 border-teal-200">
-                              <img
-                                src={store.qrCodeUrl}
-                                alt={`${store.name} 검증 QR 코드`}
-                                className="w-32 h-32"
-                              />
+            {/* 이벤트 미션 인증 QR (가로 배치) */}
+            {!isHostSameAsStore && stores.length > 0 && (
+              <div className="mt-8">
+                <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+                  <h3 className="text-lg font-semibold text-gray-900">*이벤트 미션 인증 QR</h3>
+                  <p className="mt-2 text-xs text-gray-600 leading-relaxed">
+                    해당 QR을 인쇄하여{' '}
+                    <span className="underline">이벤트 사용처에서 노출시켜야 합니다.</span>
+                  </p>
+                  
+                  <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {stores.map((store, index) => (
+                      <div key={store.id} className="flex flex-col items-center">
+                        <p className="text-sm font-medium text-gray-700 mb-2 text-center">
+                          사용처 {index + 1}: {store.name || '(이름 없음)'}
+                        </p>
+                        <div className="flex items-center justify-center">
+                          {storeQrLoading[store.id] ? (
+                            <div className="flex flex-col items-center justify-center h-32 w-32">
+                              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mb-2"></div>
+                              <p className="text-xs text-gray-500">QR 생성 중...</p>
                             </div>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center justify-center h-32 w-32 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
-                            <p className="text-xs text-gray-400 text-center px-2">사용처 정보 입력 후</p>
-                            <p className="text-xs text-gray-400 mt-1 text-center px-2">QR 코드가 생성됩니다</p>
-                          </div>
-                        )}
+                          ) : store.qrCodeUrl ? (
+                            <div className="flex flex-col items-center">
+                              <div className="p-2 bg-white rounded-lg border-2 border-teal-200">
+                                <img
+                                  src={store.qrCodeUrl}
+                                  alt={`${store.name} 검증 QR 코드`}
+                                  className="w-32 h-32"
+                                />
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center justify-center h-32 w-32 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
+                              <p className="text-xs text-gray-400 text-center px-2">사용처 정보 입력 후</p>
+                              <p className="text-xs text-gray-400 mt-1 text-center px-2">QR 코드가 생성됩니다</p>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
+          </div>
           )}
         </div>
       </div>

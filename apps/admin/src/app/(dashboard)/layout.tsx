@@ -59,25 +59,24 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <header className="bg-white shadow-sm">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
+      <header className="shadow-sm" style={{ backgroundColor: '#414B55' }}>
+        <div className="flex items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              MyMinglz {isAdmin ? '전체 관리자' : '관리자'}
+            <h1 className="text-2xl font-bold text-white">
+              myminglz
             </h1>
-            <p className="mt-1 text-sm text-gray-600">
-              {displayName} 님, 환영합니다. {isAdmin && <span className="text-blue-600 font-semibold">[관리자]</span>}
-            </p>
           </div>
           <LogoutButton />
         </div>
       </header>
 
-      <DashboardNav isAdmin={isAdmin} />
+      <div className="flex">
+        <DashboardNav isAdmin={isAdmin} />
 
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        {children}
-      </main>
+        <main className="flex-1 px-4 py-8 sm:px-6 lg:px-8">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }
