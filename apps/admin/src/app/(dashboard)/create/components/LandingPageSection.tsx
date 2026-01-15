@@ -2,6 +2,7 @@
 
 import { ChangeEvent, useEffect, useMemo, useState, useRef, useImperativeHandle, forwardRef } from 'react';
 import PhoneFrame from '../templates/components/PhoneFrame';
+import SplitFormLayout from './SplitFormLayout';
 import {
   type TemplateCategory,
   type TemplateVariant,
@@ -709,244 +710,248 @@ const LandingPageSection = forwardRef<LandingPageSectionRef, LandingPageSectionP
   };
 
   return (
-    <section className="space-y-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900">
-          랜딩 페이지 디자인 (Page {selectedPage.toString().padStart(2, '0')})
-        </h3>
-        <p className="mt-2 text-sm text-gray-500">
-          템플릿 유형과 디자인을 선택하고, 배경 색상과 콘텐츠를 조정합니다.
-        </p>
-      </div>
-
-      {/* 전역 배경색 선택 */}
-      <div className="rounded-lg border border-gray-100 bg-gray-50 p-5">
-        <span className="text-xs font-semibold text-gray-700">랜딩 페이지 배경 색 (모든 페이지에 적용)</span>
-        <div className="mt-3 flex flex-wrap items-center gap-3">
-          <input
-            type="color"
-            value={currentBackgroundColor}
-            onChange={(event) => handleBackgroundColorChange(event.target.value)}
-            className="h-10 w-20 cursor-pointer rounded-md border border-gray-200 bg-white p-1 shadow-sm"
-          />
-          <div className="flex items-center gap-2 text-xs text-gray-500">
-            <span>현재 색상:</span>
-            <span className="rounded-md border border-gray-200 bg-white px-2 py-1 font-medium text-gray-700">
-              {currentBackgroundColor.toUpperCase()}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-[500px_1fr]">
-        {/* 좌측: 랜딩 페이지 미리보기 */}
-        <div className="rounded-3xl border border-slate-200 bg-slate-100/80 p-6 shadow-inner">
-          <div className="rounded-2xl border border-white/70 bg-white px-5 py-3 text-sm font-semibold text-slate-800 shadow-sm">
-            랜딩 페이지 미리보기
-          </div>
-
-          <div className="mt-5 flex gap-5">
-            {/* 썸네일 리스트 */}
-            <div className="flex h-[460px] w-[200px] flex-col items-center rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-              <span className="text-sm font-semibold text-blue-600">
-                {selectedPage} / {pages.length}
-              </span>
-              <div className="mt-4 w-full flex-1 overflow-y-auto">
-                <div className="flex flex-col gap-3 pr-1">
-                  {pages.map((page) => {
-                    const isActive = page.id === selectedPage;
-                    const pageSelection = pageSelections[page.id] || getDefaultSelectionForPage(page.id);
-                    const PageTemplate = templateComponentMap[pageSelection.pageType]?.[pageSelection.templateType];
-                    const pageDefaultValues = templateDefaultValues[pageSelection.pageType]?.[pageSelection.templateType] || {};
-                    const pageDesignValues = designValues[page.id] || {};
-                    const pageBgColor = globalBackgroundColor;
-                    const pageData = { ...pageDefaultValues, ...pageDesignValues, backgroundColor: pageBgColor };
-                    
-                    return (
-                      <div key={page.id} className="relative group">
-                        <button
-                          onClick={() => setSelectedPage(page.id)}
-                          className={`group flex w-full flex-col items-center gap-2 rounded-2xl border-2 px-3 py-3 transition-all ${
-                            isActive
-                              ? 'border-blue-500 bg-blue-50 shadow-sm'
-                              : 'border-slate-200 bg-white hover:border-slate-300'
-                          }`}
-                        >
-                          <div
-                            className={`relative h-24 w-16 overflow-hidden rounded-2xl border ${
-                              isActive
-                                ? 'border-blue-500 bg-white'
-                                : 'border-slate-200 bg-slate-100'
-                            }`}
-                          >
-                            {PageTemplate ? (
-                              <div 
-                                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
-                                style={{ 
-                                  transform: 'translate(-50%, -50%) scale(0.25)',
-                                  width: '232px',
-                                  height: '470px',
-                                }}
-                              >
-                                <PageTemplate data={pageData} />
-                              </div>
-                            ) : (
-                              <div 
-                                className="flex h-full w-full items-center justify-center text-[8px] text-slate-400"
-                                style={{ backgroundColor: pageBgColor }}
-                              >
-                                {pageSelection.pageType || '미리보기'}
-                              </div>
-                            )}
-                          </div>
-                          <span
-                            className={`rounded-full px-3 py-1 text-[11px] font-medium ${
-                              isActive ? 'bg-blue-500 text-white' : 'text-slate-500'
-                            }`}
-                          >
-                            {page.label}
-                          </span>
-                        </button>
-                        {pages.length > 1 && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRemovePage(page.id);
-                            }}
-                            className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white opacity-0 transition-opacity hover:bg-red-600 group-hover:opacity-100"
-                            title="페이지 삭제"
-                          >
-                            <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
+    <section className="rounded-lg border border-gray-200 bg-white shadow-sm">
+      <SplitFormLayout
+        infoBox={{
+          stepNumber: 4,
+          title: (
+            <>
+              이벤트 기본 정보 작성 단계입니다. <span className="text-[#32373D] font-normal"><span className="text-[#4D82F3] font-bold">*표시</span>는 필수로 작성해야할 정보입니다.</span>
+            </>
+          ),
+          description: [
+            '랜딩페이지 제작 단계는 이벤트 참여자가 QR을 스캔했을 때 가장 먼저 보게 되는 안내 페이지를 구성하는 단계입니다.',
+            '이 단계에서는 이벤트에 대한 핵심 정보뿐 아니라, 브랜드의 이미지와 메시지가 자연스럽게 노출되도록 구성합니다.',
+          ],
+        }}
+        leftContent={
+          <div className="space-y-5">
+            {/* 전역 배경색 선택 */}
+            <div className="rounded-lg border border-gray-100 bg-gray-50 p-5">
+              <span className="text-xs font-semibold text-gray-700">랜딩 페이지 배경 색 (모든 페이지에 적용)</span>
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <input
+                  type="color"
+                  value={currentBackgroundColor}
+                  onChange={(event) => handleBackgroundColorChange(event.target.value)}
+                  className="h-10 w-20 cursor-pointer rounded-md border border-gray-200 bg-white p-1 shadow-sm"
+                />
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <span>현재 색상:</span>
+                  <span className="rounded-md border border-gray-200 bg-white px-2 py-1 font-medium text-gray-700">
+                    {currentBackgroundColor.toUpperCase()}
+                  </span>
                 </div>
               </div>
+            </div>
+
+            <div className="flex border-b border-gray-200">
               <button
-                onClick={handleAddPage}
-                className="mt-4 w-full rounded-xl bg-blue-500 py-2 text-xs font-semibold text-white transition-colors hover:bg-blue-600"
+                onClick={() => setActiveTab('type')}
+                className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors ${
+                  activeTab === 'type'
+                    ? 'border-b-2 border-blue-500 text-blue-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
               >
-                + 화면 추가하기
+                1. 템플릿 유형
+              </button>
+              <button
+                onClick={() => setActiveTab('design')}
+                className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors ${
+                  activeTab === 'design'
+                    ? 'border-b-2 border-blue-500 text-blue-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                2. 템플릿 디자인
               </button>
             </div>
 
-            <div className="hidden h-[460px] w-[2px] rounded-full bg-slate-400 lg:block" />
-
-            {/* 메인 미리보기 */}
-            <div className="flex flex-1 flex-col items-center gap-4">
-              <div className="text-sm font-semibold text-slate-800">
-                {selectedPageLabel} · Page {selectedPage.toString().padStart(2, '0')}
-              </div>
-              {isTemplateAvailable && SelectedTemplate ? (
-                <SelectedTemplate data={{ ...currentDesignValues, backgroundColor: currentBackgroundColor }} />
-              ) : (
-                <PhoneFrame innerBackgroundColor={currentBackgroundColor}>
-                  <div className="flex h-full flex-col items-center justify-center gap-2 text-sm font-semibold text-slate-400">
-                    결과 없음
-                    <span className="text-xs font-normal text-slate-400">
-                      선택한 조합의 미리보기가 준비 중입니다.
-                    </span>
-                  </div>
-                </PhoneFrame>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* 우측: 디자인 편집 */}
-    <div className="space-y-5 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="flex border-b border-gray-200">
-            <button
-              onClick={() => setActiveTab('type')}
-              className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors ${
-                activeTab === 'type'
-                  ? 'border-b-2 border-blue-500 text-blue-600'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              1. 템플릿 유형
-            </button>
-            <button
-              onClick={() => setActiveTab('design')}
-              className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors ${
-                activeTab === 'design'
-                  ? 'border-b-2 border-blue-500 text-blue-600'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              2. 템플릿 디자인
-            </button>
-          </div>
-
-          {activeTab === 'type' && (
-            <div className="space-y-5">
-              <div>
-                <h4 className="text-sm font-semibold text-gray-800">페이지 유형 선택</h4>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {availableTemplateCategories.map((item) => {
-                    const isSelected = pageType === item;
-                    return (
-                      <button
-                        key={item}
-                        onClick={() => handlePageTypeChange(item)}
-                        className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-                          isSelected
-                            ? 'bg-blue-600 text-white shadow-sm'
-                            : 'border border-gray-300 bg-white text-gray-600 hover:border-gray-400'
-                        }`}
-                      >
-                        {item}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div>
-                <h4 className="text-sm font-semibold text-gray-800">템플릿 스타일</h4>
-                        <div className="mt-3 grid gap-4 md:grid-cols-2">
-                  {availableTemplateVariants.length > 0 ? (
-                    availableTemplateVariants.map((item) => {
-                    const isSelected = templateType === item;
-                    return (
-                      <button
-                        key={item}
-                        onClick={() => handleTemplateTypeChange(item)}
-                        className={`rounded-2xl border p-4 text-left transition-colors ${
-                          isSelected
-                            ? 'border-blue-500 bg-blue-50 shadow-sm'
-                            : 'border-gray-200 bg-white hover:border-gray-300'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
-                          <span
-                            className={`h-3 w-3 rounded-full border ${
-                              isSelected ? 'border-blue-600 bg-blue-600' : 'border-gray-300'
-                            }`}
-                          />
+            {activeTab === 'type' && (
+              <div className="space-y-5">
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-800">페이지 유형 선택</h4>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {availableTemplateCategories.map((item) => {
+                      const isSelected = pageType === item;
+                      return (
+                        <button
+                          key={item}
+                          onClick={() => handlePageTypeChange(item)}
+                          className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+                            isSelected
+                              ? 'bg-blue-600 text-white shadow-sm'
+                              : 'border border-gray-300 bg-white text-gray-600 hover:border-gray-400'
+                          }`}
+                        >
                           {item}
-                        </div>
-                        <div className="mt-3 h-36 rounded-xl border border-dashed border-gray-300 bg-gray-50"></div>
-                      </button>
+                        </button>
                       );
-                    })
-                  ) : (
-                    <div className="col-span-full rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center text-sm text-gray-500">
-                      선택 가능한 템플릿 유형이 없습니다.
-                    </div>
-                  )}
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-800">템플릿 스타일</h4>
+                  <div className="mt-3 grid gap-4 md:grid-cols-2">
+                    {availableTemplateVariants.length > 0 ? (
+                      availableTemplateVariants.map((item) => {
+                        const isSelected = templateType === item;
+                        return (
+                          <button
+                            key={item}
+                            onClick={() => handleTemplateTypeChange(item)}
+                            className={`rounded-2xl border p-4 text-left transition-colors ${
+                              isSelected
+                                ? 'border-blue-500 bg-blue-50 shadow-sm'
+                                : 'border-gray-200 bg-white hover:border-gray-300'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+                              <span
+                                className={`h-3 w-3 rounded-full border ${
+                                  isSelected ? 'border-blue-600 bg-blue-600' : 'border-gray-300'
+                                }`}
+                              />
+                              {item}
+                            </div>
+                            <div className="mt-3 h-36 rounded-xl border border-dashed border-gray-300 bg-gray-50"></div>
+                          </button>
+                        );
+                      })
+                    ) : (
+                      <div className="col-span-full rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center text-sm text-gray-500">
+                        선택 가능한 템플릿 유형이 없습니다.
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {activeTab === 'design' && renderDesignFields()}
-        </div>
-      </div>
+            {activeTab === 'design' && renderDesignFields()}
+          </div>
+        }
+        rightContent={
+          <div className="rounded-3xl border border-slate-200 bg-slate-100/80 p-6 shadow-inner">
+            <div className="rounded-2xl border border-white/70 bg-white px-5 py-3 text-sm font-semibold text-slate-800 shadow-sm">
+              랜딩 페이지 미리보기
+            </div>
+
+            <div className="mt-5 flex gap-5">
+              {/* 썸네일 리스트 */}
+              <div className="flex h-[460px] w-[200px] flex-col items-center rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+                <span className="text-sm font-semibold text-blue-600">
+                  {selectedPage} / {pages.length}
+                </span>
+                <div className="mt-4 w-full flex-1 overflow-y-auto">
+                  <div className="flex flex-col gap-3 pr-1">
+                    {pages.map((page) => {
+                      const isActive = page.id === selectedPage;
+                      const pageSelection = pageSelections[page.id] || getDefaultSelectionForPage(page.id);
+                      const PageTemplate = templateComponentMap[pageSelection.pageType]?.[pageSelection.templateType];
+                      const pageDefaultValues = templateDefaultValues[pageSelection.pageType]?.[pageSelection.templateType] || {};
+                      const pageDesignValues = designValues[page.id] || {};
+                      const pageBgColor = globalBackgroundColor;
+                      const pageData = { ...pageDefaultValues, ...pageDesignValues, backgroundColor: pageBgColor };
+                      
+                      return (
+                        <div key={page.id} className="relative group">
+                          <button
+                            onClick={() => setSelectedPage(page.id)}
+                            className={`group flex w-full flex-col items-center gap-2 rounded-2xl border-2 px-3 py-3 transition-all ${
+                              isActive
+                                ? 'border-blue-500 bg-blue-50 shadow-sm'
+                                : 'border-slate-200 bg-white hover:border-slate-300'
+                            }`}
+                          >
+                            <div
+                              className={`relative h-24 w-16 overflow-hidden rounded-2xl border ${
+                                isActive
+                                  ? 'border-blue-500 bg-white'
+                                  : 'border-slate-200 bg-slate-100'
+                              }`}
+                            >
+                              {PageTemplate ? (
+                                <div 
+                                  className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+                                  style={{ 
+                                    transform: 'translate(-50%, -50%) scale(0.25)',
+                                    width: '232px',
+                                    height: '470px',
+                                  }}
+                                >
+                                  <PageTemplate data={pageData} />
+                                </div>
+                              ) : (
+                                <div 
+                                  className="flex h-full w-full items-center justify-center text-[8px] text-slate-400"
+                                  style={{ backgroundColor: pageBgColor }}
+                                >
+                                  {pageSelection.pageType || '미리보기'}
+                                </div>
+                              )}
+                            </div>
+                            <span
+                              className={`rounded-full px-3 py-1 text-[11px] font-medium ${
+                                isActive ? 'bg-blue-500 text-white' : 'text-slate-500'
+                              }`}
+                            >
+                              {page.label}
+                            </span>
+                          </button>
+                          {pages.length > 1 && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemovePage(page.id);
+                              }}
+                              className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white opacity-0 transition-opacity hover:bg-red-600 group-hover:opacity-100"
+                              title="페이지 삭제"
+                            >
+                              <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                <button
+                  onClick={handleAddPage}
+                  className="mt-4 w-full rounded-xl bg-blue-500 py-2 text-xs font-semibold text-white transition-colors hover:bg-blue-600"
+                >
+                  + 화면 추가하기
+                </button>
+              </div>
+
+              <div className="hidden h-[460px] w-[2px] rounded-full bg-slate-400 lg:block" />
+
+              {/* 메인 미리보기 */}
+              <div className="flex flex-1 flex-col items-center gap-4">
+                <div className="text-sm font-semibold text-slate-800">
+                  {selectedPageLabel} · Page {selectedPage.toString().padStart(2, '0')}
+                </div>
+                {isTemplateAvailable && SelectedTemplate ? (
+                  <SelectedTemplate data={{ ...currentDesignValues, backgroundColor: currentBackgroundColor }} />
+                ) : (
+                  <PhoneFrame innerBackgroundColor={currentBackgroundColor}>
+                    <div className="flex h-full flex-col items-center justify-center gap-2 text-sm font-semibold text-slate-400">
+                      결과 없음
+                      <span className="text-xs font-normal text-slate-400">
+                        선택한 조합의 미리보기가 준비 중입니다.
+                      </span>
+                    </div>
+                  </PhoneFrame>
+                )}
+              </div>
+            </div>
+          </div>
+        }
+      />
     </section>
   );
 });
