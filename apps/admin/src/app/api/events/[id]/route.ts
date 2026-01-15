@@ -146,10 +146,11 @@ export async function GET(
         .single();
 
       if (location) {
+        console.log('🔵 [API GET] Location 찾음:', location.id);
         // 해당 location의 stores 조회
         const { data: storesData, error: storesError } = await supabase
           .from('stores')
-          .select('id, name, slug, location_id, description, is_active')
+          .select('id, name, slug, location_id, description, image_url, is_active')
           .eq('location_id', location.id)
           .eq('is_active', true)
           .order('created_at', { ascending: true });
@@ -157,18 +158,82 @@ export async function GET(
         if (!storesError && storesData) {
           stores = storesData;
           console.log('✅ Stores 조회 성공:', stores.length, '개');
+          if (stores.length > 0) {
+            console.log('🔵 [API GET] 첫 번째 store:', stores[0]);
+          }
         } else if (storesError) {
-          console.error('Stores 조회 오류:', storesError);
+          console.error('❌ Stores 조회 오류:', storesError);
+        } else {
+          console.log('⚠️ [API GET] Stores 데이터 없음 (storesData는 있지만 빈 배열일 수 있음)');
         }
+      } else {
+        console.log('⚠️ [API GET] Location을 찾을 수 없음 (domain_code:', event.domain_code, ')');
       }
     }
+
+    // event_info_config에 stores 포함
+    let eventInfoConfig = event.event_info_config || {};
+    if (typeof eventInfoConfig === 'string') {
+      try {
+        eventInfoConfig = JSON.parse(eventInfoConfig);
+      } catch (e) {
+        eventInfoConfig = {};
+      }
+    }
+    
+    console.log('🔵 [API GET] event_info_config 원본 stores:', eventInfoConfig.stores?.length || 0);
+    
+    // event_info_config에 이미 stores가 있으면 우선 사용, 없으면 stores 테이블에서 조회한 것 사용
+    let finalStores = eventInfoConfig.stores || [];
+    
+    // event_info_config.stores가 없거나 비어있을 때만 stores 테이블에서 조회한 것을 사용
+    if (!finalStores || finalStores.length === 0) {
+      // stores를 event_info_config 형식으로 변환
+      const formattedStores = stores.map((store: any) => {
+        // description에서 JSON 파싱 시도 (임시 ID 정보 추출)
+        let description = store.description || '';
+        let benefit = description;
+        let tempId = store.id; // 기본값으로 store.id 사용 (수정 시 참조용)
+        
+        try {
+          const parsed = JSON.parse(description);
+          if (parsed && typeof parsed === 'object' && 'tempId' in parsed) {
+            tempId = parsed.tempId;
+            benefit = parsed.description || description;
+          }
+        } catch (e) {
+          // JSON이 아니면 그대로 사용
+        }
+        
+        return {
+          id: tempId || store.id, // tempId를 우선 사용하되 없으면 store.id 사용
+          name: store.name,
+          location: '',
+          benefit: benefit,
+          usage_period: '',
+          use_event_period: true,
+          slug: store.slug,
+          image_url: store.image_url || null,
+        };
+      });
+      
+      finalStores = formattedStores;
+      console.log('🔵 [API GET] stores 테이블에서 조회한 stores 사용:', formattedStores.length, '개');
+    } else {
+      console.log('🔵 [API GET] event_info_config의 stores 사용:', finalStores.length, '개');
+    }
+    
+    console.log('🔵 [API GET] 최종 stores:', finalStores.length, '개');
+    
+    eventInfoConfig.stores = finalStores;
 
     return NextResponse.json({
       success: true,
       data: {
         ...event,
+        event_info_config: eventInfoConfig,
         landing_pages: formattedLandingPages,
-        stores: stores, // Stores 정보 추가
+        stores: stores, // Stores 정보 추가 (원본)
       },
     });
   } catch (error: any) {
@@ -411,6 +476,7 @@ export async function PUT(
                 slug: slug,
                 location_id: location.id,
                 description: descriptionWithTempId,
+                image_url: store.image_url || store.imageUrl || null, // image_url 또는 imageUrl 둘 다 지원
                 is_active: true,
               };
             });

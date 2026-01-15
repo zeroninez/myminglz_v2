@@ -37,14 +37,18 @@ export default function EditPage() {
 
   const steps = [
     { number: 1, title: '기본정보' },
-    { number: 2, title: '사용처등록' },
-    { number: 3, title: '이벤트 미션' },
+    { number: 2, title: '쿠폰 설정' },
+    { number: 3, title: '미션 설정' },
     { number: 4, title: '랜딩 페이지' },
   ];
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isFormValid, setIsFormValid] = useState(false);
+  const stepRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const [activeStepLeft, setActiveStepLeft] = useState(0);
+  const [activeStepWidth, setActiveStepWidth] = useState(0);
   
   // 각 섹션의 데이터를 저장할 ref
   const eventInfoDataRef = useRef<EventInfoData>({});
@@ -77,6 +81,14 @@ export default function EditPage() {
         }
 
         const eventData = result.data;
+        
+        console.log('🔵 [수정] 이벤트 데이터 로드:', {
+          hasStores: !!eventData.stores,
+          storesCount: eventData.stores?.length || 0,
+          hasEventInfoConfig: !!eventData.event_info_config,
+          hasEventInfoConfigStores: !!eventData.event_info_config?.stores,
+          eventInfoConfigStoresCount: eventData.event_info_config?.stores?.length || 0,
+        });
 
         // 날짜 형식 변환 함수 (ISO 형식을 YYYY-MM-DD로 변환)
         const formatDateForInput = (dateString: string | null | undefined): string => {
@@ -98,32 +110,50 @@ export default function EditPage() {
         };
 
         // EventInfoSection 초기값 설정
-        // DB에서 가져온 stores 데이터를 event_info_config.stores에 매핑
-        const storesFromDB = eventData.stores || [];
+        // API에서 이미 포맷팅된 stores를 event_info_config.stores에 포함시켜주므로 그대로 사용
         const eventInfoConfig = eventData.event_info_config || {};
-        const mappedStores = storesFromDB.map((store: any) => {
-          // description에서 tempId 추출 (JSON 형태로 저장되어 있을 수 있음)
-          let tempId = null;
-          let benefit = store.description || '';
-          try {
-            const parsed = JSON.parse(store.description || '{}');
-            if (parsed.tempId) {
-              tempId = parsed.tempId;
-              benefit = parsed.description || '';
-            }
-          } catch {
-            // JSON이 아니면 그대로 사용
-          }
-          
-          return {
-            id: tempId || store.id, // 임시 ID가 있으면 사용, 없으면 DB ID
-            name: store.name,
-            benefit: benefit,
-            usage_period: '',
-            use_event_period: true,
-            slug: store.slug, // DB에서 가져온 slug 포함
-          };
+        
+        // event_info_config.stores가 있으면 사용, 없으면 eventData.stores에서 매핑
+        let stores = eventInfoConfig.stores || [];
+        
+        console.log('🔵 [수정] stores 초기 상태:', {
+          eventInfoConfigStores: eventInfoConfig.stores?.length || 0,
+          eventDataStores: eventData.stores?.length || 0,
+          storesLength: stores.length,
         });
+        
+        // event_info_config.stores가 없고 eventData.stores가 있으면 매핑
+        if (stores.length === 0 && eventData.stores && eventData.stores.length > 0) {
+          console.log('🔵 [수정] eventData.stores에서 매핑 시작:', eventData.stores);
+          stores = eventData.stores.map((store: any) => {
+            // description에서 tempId 추출 (JSON 형태로 저장되어 있을 수 있음)
+            let tempId = null;
+            let benefit = store.description || '';
+            try {
+              const parsed = JSON.parse(store.description || '{}');
+              if (parsed.tempId) {
+                tempId = parsed.tempId;
+                benefit = parsed.description || '';
+              }
+            } catch {
+              // JSON이 아니면 그대로 사용
+            }
+            
+            return {
+              id: tempId || store.id, // 임시 ID가 있으면 사용, 없으면 DB ID
+              name: store.name,
+              location: store.location || '',
+              benefit: benefit,
+              usage_period: store.usage_period || '',
+              use_event_period: store.use_event_period !== undefined ? store.use_event_period : true,
+              slug: store.slug, // DB에서 가져온 slug 포함
+              image_url: store.image_url || null, // 이미지 URL 포함
+            };
+          });
+          console.log('🔵 [수정] 매핑된 stores:', stores);
+        }
+        
+        console.log('🔵 [수정] 최종 stores:', stores);
 
         const eventInfo: EventInfoData = {
           name: eventData.name || '',
@@ -136,7 +166,7 @@ export default function EditPage() {
           coupon_preview_image_url: eventData.coupon_preview_image_url || '',
           event_info_config: {
             ...eventInfoConfig,
-            stores: mappedStores.length > 0 ? mappedStores : (eventInfoConfig.stores || []),
+            stores: stores,
           },
         };
         setInitialEventInfo(eventInfo);
@@ -226,22 +256,26 @@ export default function EditPage() {
       const landingPagesData = convertPageBuilderToDB(finalLandingPageData);
 
       // 3. API 호출 (PUT)
+      const finalEventInfo = eventInfoDataRef.current; // 업로드 후 최신 데이터 사용
+      console.log('🔵 [수정] API 호출 전 최종 eventInfo:', finalEventInfo);
+      console.log('🔵 [수정] stores:', finalEventInfo.event_info_config?.stores);
+      
       const response = await fetch(`/api/events/${eventId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          name: eventInfo.name,
-          domain_code: eventInfo.domain_code,
-          start_date: eventInfo.start_date || null,
-          end_date: eventInfo.end_date || null,
-          background_color: eventInfo.background_color || '#000000',
-          description: eventInfo.description || null,
-          content_html: eventInfo.content_html || null,
-          coupon_preview_image_url: eventInfo.coupon_preview_image_url || null,
+          name: finalEventInfo.name,
+          domain_code: finalEventInfo.domain_code,
+          start_date: finalEventInfo.start_date || null,
+          end_date: finalEventInfo.end_date || null,
+          background_color: finalEventInfo.background_color || '#000000',
+          description: finalEventInfo.description || null,
+          content_html: finalEventInfo.content_html || null,
+          coupon_preview_image_url: finalEventInfo.coupon_preview_image_url || null,
           mission_config: eventMissionDataRef.current.mission_config || null,
-          event_info_config: eventInfo.event_info_config || null,
+          event_info_config: finalEventInfo.event_info_config || null,
           landing_pages: landingPagesData,
         }),
       });
@@ -264,6 +298,21 @@ export default function EditPage() {
   };
 
   const nextLabel = currentStep === steps.length - 1 ? '수정 완료' : '다음';
+
+  // 활성 스텝 위치 계산
+  useEffect(() => {
+    const activeStepRef = stepRefs.current[currentStep];
+    if (activeStepRef) {
+      const container = activeStepRef.parentElement;
+      if (container) {
+        const containerRect = container.getBoundingClientRect();
+        const stepRect = activeStepRef.getBoundingClientRect();
+        const padding = 8; // 좌우 각각 8px 확장
+        setActiveStepLeft((stepRect.left - containerRect.left) - padding);
+        setActiveStepWidth(stepRect.width + (padding * 2));
+      }
+    }
+  }, [currentStep]);
 
   if (loading) {
     return (
@@ -289,84 +338,127 @@ export default function EditPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <section className="rounded-lg border border-blue-200 bg-blue-50 px-6 py-5 shadow-sm">
+    <div className="flex flex-col h-screen">
+      <div className="px-6">
+        <h2 className="text-2xl font-bold text-gray-900 mt-4 mb-5">이벤트 수정</h2>
+      </div>
+      <section className="border-t border-x border-b border-gray-200 bg-white px-6 pt-5 pb-0 shadow-sm relative">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex flex-wrap items-center gap-4 text-sm font-medium">
+          <div className="flex flex-wrap items-center gap-4 text-sm font-medium pb-4 relative">
             {steps.map((step, index) => {
               const isActive = index === currentStep;
               const isCompleted = index < currentStep;
 
               return (
-                <div key={step.number} className="flex items-center gap-3">
-                  <div
-                    className={`flex h-7 w-7 items-center justify-center rounded-full border text-xs ${
-                      isActive
-                        ? 'border-blue-500 bg-white font-semibold text-blue-600'
-                        : isCompleted
-                        ? 'border-blue-500 bg-blue-500 font-semibold text-white'
-                        : 'border-gray-300 bg-white text-gray-600'
-                    }`}
-                  >
-                    {step.number}
+                <div 
+                  key={step.number} 
+                  ref={(el) => { stepRefs.current[index] = el; }}
+                  className="flex items-center gap-3"
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold text-white`}
+                      style={isActive ? { backgroundColor: '#4D82F3' } : isCompleted ? { backgroundColor: '#32373D' } : { backgroundColor: '#888888' }}
+                    >
+                      {isCompleted ? (
+                        <svg width="20" height="20" viewBox="0 0 33 33" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path fillRule="evenodd" clipRule="evenodd" d="M16.0747 23.1733L25.2413 12.1733L22.4253 9.82667L14.542 19.2848L10.4628 15.2038L7.8705 17.7962L13.3705 23.2962L14.7895 24.7152L16.0747 23.1733Z" fill="white"/>
+                        </svg>
+                      ) : (
+                        step.number
+                      )}
+                    </div>
+                    <span
+                      className={`font-bold ${
+                        isActive
+                          ? 'text-[#4D82F3]'
+                          : isCompleted
+                          ? 'text-[#32373D]'
+                          : 'text-[#888888]'
+                      }`}
+                    >
+                      {step.title}
+                    </span>
+                    {index < steps.length - 1 && (
+                      <span className={`text-lg font-bold ${isActive ? 'text-[#4D82F3]' : isCompleted ? 'text-[#32373D]' : 'text-[#888888]'}`}>{'>'}</span>
+                    )}
                   </div>
-                  <span
-                    className={
-                      isActive
-                        ? 'text-blue-600'
-                        : isCompleted
-                        ? 'text-gray-500'
-                        : 'text-gray-600'
-                    }
-                  >
-                    {step.title}
-                  </span>
-                  {index < steps.length - 1 && (
-                    <span className="text-gray-300">{'>'}</span>
-                  )}
                 </div>
               );
             })}
+            {/* 활성 스텝 아래 파란색 구분선 */}
+            {activeStepWidth > 0 && (
+              <div
+                className="absolute bottom-0 h-0.5 bg-[#4D82F3]"
+                style={{ 
+                  left: `${activeStepLeft}px`,
+                  width: `${activeStepWidth}px`
+                }}
+              ></div>
+            )}
           </div>
 
-          <div className="flex items-center gap-3">
-            {currentStep > 0 && (
-              <button
-                onClick={handlePrevious}
-                disabled={isSubmitting}
-                className="inline-flex h-10 items-center rounded-lg border border-gray-300 bg-white px-5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                이전
-              </button>
-            )}
-          <button
-            onClick={handleNext}
-            disabled={isSubmitting}
-            className="inline-flex h-10 items-center rounded-lg bg-blue-500 px-5 text-sm font-semibold text-white transition-colors hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isSubmitting ? '저장 중...' : nextLabel}
-          </button>
-          </div>
         </div>
       </section>
 
       {currentStep === 0 && initialEventInfo && (
-        <EventInfoSection
-          ref={eventInfoSectionRef}
-          mode="basicInfo"
-          initialData={Object.keys(eventInfoDataRef.current).length > 0 ? eventInfoDataRef.current : initialEventInfo}
-          onDataChange={(data) => {
-            eventInfoDataRef.current = { ...eventInfoDataRef.current, ...data };
-          }}
-        />
+        <>
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+            <EventInfoSection
+              ref={eventInfoSectionRef}
+              mode="basicInfo"
+              isEditMode={true}
+              initialData={Object.keys(eventInfoDataRef.current).length > 0 ? eventInfoDataRef.current : initialEventInfo}
+              onDataChange={(data) => {
+                eventInfoDataRef.current = { ...eventInfoDataRef.current, ...data };
+                // 데이터 변경 시 검증
+                if (eventInfoSectionRef.current) {
+                  const isValid = eventInfoSectionRef.current.isValid();
+                  setIsFormValid(isValid);
+                }
+              }}
+            />
+          </div>
+          {/* 하단 고정 버튼 */}
+          <div className="fixed bottom-0 left-[240px] right-0 bg-white z-10 border-t border-gray-200">
+            <div className="p-4 flex justify-end">
+              <button
+                onClick={handleNext}
+                disabled={isSubmitting || !isFormValid}
+                className="inline-flex h-10 items-center rounded px-5 text-sm font-semibold text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                  backgroundColor: isFormValid ? '#414B55' : '#C3C3C3',
+                }}
+                onMouseEnter={(e) => {
+                  if (isFormValid && !isSubmitting) {
+                    e.currentTarget.style.backgroundColor = '#32373D';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (isFormValid && !isSubmitting) {
+                    e.currentTarget.style.backgroundColor = '#414B55';
+                  }
+                }}
+              >
+                {isSubmitting ? '저장 중...' : nextLabel}
+              </button>
+            </div>
+          </div>
+        </>
       )}
       {currentStep === 1 && initialEventInfo && (
         <EventInfoSection
           ref={eventInfoSectionRef}
           mode="storeRegistration"
+          isEditMode={true}
           initialData={Object.keys(eventInfoDataRef.current).length > 0 ? eventInfoDataRef.current : initialEventInfo}
           onDataChange={(data) => {
             eventInfoDataRef.current = { ...eventInfoDataRef.current, ...data };
+            // 데이터 변경 시 검증
+            if (eventInfoSectionRef.current) {
+              const isValid = eventInfoSectionRef.current.isValid();
+              setIsFormValid(isValid);
+            }
           }}
         />
       )}
@@ -388,6 +480,41 @@ export default function EditPage() {
             landingPageDataRef.current = data;
           }}
         />
+      )}
+
+      {/* 하단 고정 버튼 (스텝 0이 아닐 때) */}
+      {currentStep > 0 && (
+        <div className="fixed bottom-0 left-[240px] right-0 bg-white z-10 border-t border-gray-200">
+          <div className="p-4 flex justify-end gap-3">
+            <button
+              onClick={handlePrevious}
+              disabled={isSubmitting}
+              className="inline-flex h-10 items-center rounded-lg border border-gray-300 bg-white px-5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              이전
+            </button>
+            <button
+              onClick={handleNext}
+              disabled={isSubmitting || !isFormValid}
+              className="inline-flex h-10 items-center rounded px-5 text-sm font-semibold text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                backgroundColor: isFormValid ? '#414B55' : '#C3C3C3',
+              }}
+              onMouseEnter={(e) => {
+                if (isFormValid && !isSubmitting) {
+                  e.currentTarget.style.backgroundColor = '#32373D';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (isFormValid && !isSubmitting) {
+                  e.currentTarget.style.backgroundColor = '#414B55';
+                }
+              }}
+            >
+              {isSubmitting ? '저장 중...' : nextLabel}
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -20,6 +20,37 @@
   .btn-secondary {
     @apply bg-gray-100 text-gray-900 hover:bg-gray-200;
   }
+
+  /* 커스텀 스크롤바 */
+  .custom-scrollbar::-webkit-scrollbar {
+  }
+
+  /* 스크롤바 버튼(화살표) 완전히 제거 */
+  .custom-scrollbar::-webkit-scrollbar-button:start:decrement,
+  .custom-scrollbar::-webkit-scrollbar-button:end:increment {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: #E8EAEC;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #C0C0C0;
+    border-radius: 4px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #A8A8A8;
+  }
+
+  /* Firefox */
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #C0C0C0 #E8EAEC;
+  }
 }
 
 

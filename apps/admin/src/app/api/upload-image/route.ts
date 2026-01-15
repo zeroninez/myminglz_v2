@@ -66,11 +66,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: '파일 크기는 10MB 이하여야 합니다.' }, { status: 400 });
     }
 
+    // 폴더명 가져오기 (기본값: landing-pages)
+    const folder = formData.get('folder') as string || 'landing-pages';
+    
     // 파일명 생성 (타임스탬프 + 사용자 ID + 원본 파일명)
     const timestamp = Date.now();
     const fileExt = file.name.split('.').pop();
     const fileName = `${user.id}/${timestamp}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-    const filePath = `landing-pages/${fileName}`;
+    const filePath = `${folder}/${fileName}`;
 
     console.log('파일 업로드 시도:', filePath, '크기:', file.size);
 

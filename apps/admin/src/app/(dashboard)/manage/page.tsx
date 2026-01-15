@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useEvents } from '@/contexts/EventsContext';
 import { QRCodeService } from '@myminglz/core/src/utils/qr';
 import { QR_SIZES, IMAGE_FORMATS, type QRSize, type ImageFormat, type QRCodeData, printQRCode, saveQRCode } from './utils/qrPrint';
 
@@ -19,9 +20,8 @@ interface Event {
 }
 
 export default function ManagePage() {
+  const { events: cachedEvents, loading: eventsLoading, error: eventsError } = useEvents();
   const [events, setEvents] = useState<Event[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [qrCodes, setQrCodes] = useState<QRCodeData[]>([]);
   const [qrLoading, setQrLoading] = useState(false);
@@ -31,29 +31,15 @@ export default function ManagePage() {
   const [deletingEventId, setDeletingEventId] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
+  const loading = eventsLoading;
+  const error = eventsError;
+
+  // Context에서 이벤트 데이터 가져오기
   useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch('/api/events');
-        const result = await response.json();
-
-        if (!result.success) {
-          setError(result.error || '이벤트 목록을 불러올 수 없습니다.');
-          return;
-        }
-
-        setEvents(result.data || []);
-      } catch (err: any) {
-        console.error('이벤트 목록 로드 오류:', err);
-        setError('이벤트 목록을 불러오는 중 오류가 발생했습니다.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchEvents();
-  }, []);
+    if (cachedEvents.length > 0) {
+      setEvents(cachedEvents as Event[]);
+    }
+  }, [cachedEvents]);
 
   const baseUrl = process.env.NEXT_PUBLIC_WEB_URL || 'https://myminglz-v2-web.vercel.app';
 

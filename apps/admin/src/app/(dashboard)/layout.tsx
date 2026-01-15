@@ -3,7 +3,8 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import DashboardNav from './DashboardNav';
-import LogoutButton from './LogoutButton';
+import HeaderActions from './HeaderActions';
+import EventsProviderWrapper from './EventsProviderWrapper';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -58,7 +59,7 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
     '사용자';
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-white">
       <header className="shadow-sm" style={{ backgroundColor: '#414B55' }}>
         <div className="flex items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
           <div>
@@ -66,15 +67,17 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
               myminglz
             </h1>
           </div>
-          <LogoutButton />
+          <HeaderActions displayName={displayName} />
         </div>
       </header>
 
       <div className="flex">
         <DashboardNav isAdmin={isAdmin} />
 
-        <main className="flex-1 px-4 py-8 sm:px-6 lg:px-8">
-          {children}
+        <main className="flex-1">
+          <EventsProviderWrapper>
+            {children}
+          </EventsProviderWrapper>
         </main>
       </div>
     </div>

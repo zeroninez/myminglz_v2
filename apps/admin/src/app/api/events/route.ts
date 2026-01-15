@@ -214,6 +214,7 @@ export async function POST(request: Request) {
               slug: slug,
               location_id: location.id,
               description: descriptionWithTempId,
+              image_url: store.image_url || store.imageUrl || null, // image_url 또는 imageUrl 둘 다 지원
               is_active: true,
             };
           });

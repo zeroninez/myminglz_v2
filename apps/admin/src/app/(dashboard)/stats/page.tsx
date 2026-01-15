@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useEvents } from '@/contexts/EventsContext';
+import { format } from 'date-fns';
 
 type TimePeriod = 'all' | 'yesterday' | 'today' | 'thisWeek' | 'thisMonth';
 type ChartType = 'all' | 'inflow' | 'issuance' | 'usage';
@@ -67,11 +69,10 @@ interface StatsData {
 }
 
 export default function StatsPage() {
+  const { events: cachedEvents, loading: eventsLoading } = useEvents();
   const [events, setEvents] = useState<Event[]>([]);
-  const [eventsLoading, setEventsLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<string>('전체');
   const [qrCode, setQrCode] = useState<string>('');
-  const [dateRange, setDateRange] = useState<string>('전체');
   const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('all');
   const [chartType, setChartType] = useState<ChartType>('all');
   const [stats, setStats] = useState<StatsData | null>(null);
@@ -79,36 +80,12 @@ export default function StatsPage() {
   const [selectedEventStats, setSelectedEventStats] = useState<EventStats | null>(null);
   const [selectedStoreIds, setSelectedStoreIds] = useState<Set<string>>(new Set()); // 'all'은 빈 Set으로 표시
 
-  // 이벤트 목록 가져오기
+  // Context에서 이벤트 데이터 가져오기
   useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        setEventsLoading(true);
-        const response = await fetch('/api/events', {
-          cache: 'no-store', // 캐시 방지
-        });
-        const result = await response.json();
-
-        if (!result.success) {
-          console.error('이벤트 목록 로드 오류:', result.error);
-          console.error('에러 상세:', result.details);
-          console.error('에러 코드:', result.code);
-          setEvents([]);
-          return;
-        }
-
-        const eventsData = Array.isArray(result.data) ? result.data : [];
-        setEvents(eventsData);
-      } catch (err: any) {
-        console.error('이벤트 목록 로드 오류:', err);
-        setEvents([]);
-      } finally {
-        setEventsLoading(false);
-      }
-    };
-
-    fetchEvents();
-  }, []);
+    if (cachedEvents.length > 0) {
+      setEvents(cachedEvents as Event[]);
+    }
+  }, [cachedEvents]);
 
   // 통계 데이터 가져오기
   const fetchStats = useCallback(async () => {
@@ -117,8 +94,8 @@ export default function StatsPage() {
       const params = new URLSearchParams({
         period: selectedPeriod,
         ...(selectedEvent !== '전체' && { eventId: selectedEvent }),
-        ...(dateRange !== '전체' && { dateRange }),
       });
+
 
       const response = await fetch(`/api/stats?${params.toString()}`);
       const result = await response.json();
@@ -142,7 +119,7 @@ export default function StatsPage() {
     } finally {
       setStatsLoading(false);
     }
-  }, [selectedEvent, selectedPeriod, dateRange]);
+  }, [selectedEvent, selectedPeriod]);
 
   // 이벤트 로드 완료 시 및 필터 변경 시 통계 데이터 자동 조회
   useEffect(() => {
@@ -167,7 +144,6 @@ export default function StatsPage() {
   const handleReset = () => {
     setSelectedEvent('전체');
     setQrCode('');
-    setDateRange('전체');
     setSelectedPeriod('all');
     setChartType('all');
   };
@@ -250,26 +226,6 @@ export default function StatsPage() {
             />
           </div>
 
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700">범위</label>
-            <div className="relative">
-              <select
-                value={dateRange}
-                onChange={(e) => setDateRange(e.target.value)}
-                className="w-full appearance-none rounded-lg border border-gray-300 bg-white px-4 py-2 pr-10 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="전체">전체</option>
-                <option value="오늘">오늘</option>
-                <option value="이번주">이번주</option>
-                <option value="이번달">이번달</option>
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
-                <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-            </div>
-          </div>
 
           <div className="flex items-end gap-2">
             <button
