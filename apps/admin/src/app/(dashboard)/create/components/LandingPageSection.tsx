@@ -710,7 +710,7 @@ const LandingPageSection = forwardRef<LandingPageSectionRef, LandingPageSectionP
   };
 
   return (
-    <section className="rounded-lg border border-gray-200 bg-white shadow-sm">
+    <div className="mb-8 flex-1 flex flex-col min-h-0">
       <SplitFormLayout
         infoBox={{
           stepNumber: 4,
@@ -724,6 +724,7 @@ const LandingPageSection = forwardRef<LandingPageSectionRef, LandingPageSectionP
             '이 단계에서는 이벤트에 대한 핵심 정보뿐 아니라, 브랜드의 이미지와 메시지가 자연스럽게 노출되도록 구성합니다.',
           ],
         }}
+        scrollHeight="calc(100vh-280px)"
         leftContent={
           <div className="space-y-5">
             {/* 전역 배경색 선택 */}
@@ -952,7 +953,7 @@ const LandingPageSection = forwardRef<LandingPageSectionRef, LandingPageSectionP
           </div>
         }
       />
-    </section>
+    </div>
   );
 });
 

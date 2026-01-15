@@ -30,6 +30,7 @@ export default function ManagePage() {
   const [sizeSelectMode, setSizeSelectMode] = useState<Record<number, 'print' | 'save' | null>>({});
   const [deletingEventId, setDeletingEventId] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [qrError, setQrError] = useState<string | null>(null);
 
   const loading = eventsLoading;
   const error = eventsError;
@@ -92,7 +93,7 @@ export default function ManagePage() {
       setQrCodes(qrCodeList);
     } catch (err) {
       console.error('QR 코드 생성 오류:', err);
-      setError('QR 코드 생성 중 오류가 발생했습니다.');
+      setQrError('QR 코드 생성 중 오류가 발생했습니다.');
     } finally {
       setQrLoading(false);
     }
