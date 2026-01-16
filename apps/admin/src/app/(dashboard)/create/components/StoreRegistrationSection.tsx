@@ -7,6 +7,7 @@ import KakaoPlaceSearch, { type Place } from './KakaoPlaceSearch';
 import DateRangePicker from './DateRangePicker';
 import SplitFormLayout from './SplitFormLayout';
 import ImageCropModal from './ImageCropModal';
+import Toggle from './Toggle';
 
 export interface Store {
   id: string;
@@ -280,24 +281,18 @@ const StoreRegistrationSection = forwardRef<StoreRegistrationSectionRef, StoreRe
               {/* 이벤트 참여 장소와 동일 옵션 */}
               <div className="mb-4">
                 <div className="border border-gray-200 rounded bg-white p-3">
-                  <label className="flex items-center justify-between cursor-pointer">
-                    <span className="text-sm font-medium text-gray-700">이벤트 참여 장소와 동일</span>
-                    <div className="relative inline-block w-11 h-6">
-                      <input
-                        type="checkbox"
-                        checked={isHostSameAsStore}
-                        onChange={(e) => {
-                          setIsHostSameAsStore(e.target.checked);
-                          // 토글을 true로 변경할 때만 stores 비우기 (false로 변경 시 복원은 EventInfoSection에서 처리)
-                          if (e.target.checked) {
-                            setStores([]);
-                          }
-                        }}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-white border-2 border-[#414B55] peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:bg-[#414B55] peer-checked:border-2 peer-checked:border-[#414B55] peer-checked:after:translate-x-[20px] after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:bg-[#414B55] after:rounded-full after:h-[18px] after:w-[18px] after:transition-all after:duration-300 peer-checked:after:bg-white"></div>
-                    </div>
-                  </label>
+                  <Toggle
+                    checked={isHostSameAsStore}
+                    onChange={(checked) => {
+                      setIsHostSameAsStore(checked);
+                      // 토글을 true로 변경할 때만 stores 비우기 (false로 변경 시 복원은 EventInfoSection에서 처리)
+                      if (checked) {
+                        setStores([]);
+                      }
+                    }}
+                    label="이벤트 참여 장소와 동일"
+                    variant="dark"
+                  />
                 </div>
               </div>
 

@@ -12,6 +12,7 @@ interface SplitFormLayoutProps {
   rightContent: ReactNode;
   scrollHeight?: string;
   className?: string;
+  rightContentPadding?: boolean; // 우측 컨텐츠 패딩 여부 (기본값: true)
 }
 
 export default function SplitFormLayout({
@@ -20,12 +21,13 @@ export default function SplitFormLayout({
   rightContent,
   scrollHeight,
   className = '',
+  rightContentPadding = true,
 }: SplitFormLayoutProps) {
   return (
-    <div className={`grid md:grid-cols-2 items-start ${className}`} style={{ height: '100%', minHeight: 0 }}>
+    <div className={`grid md:grid-cols-2 items-stretch ${className}`} style={{ height: '100%', minHeight: 0 }}>
       {/* 좌측: 입력 폼 */}
       <div 
-        className="pr-6 pt-6 pb-12 overflow-y-auto custom-scrollbar"
+        className="pr-6 pt-6 pb-20 overflow-y-auto custom-scrollbar"
         style={{ maxHeight: '100%', minHeight: 0 }}
       >
         {/* 정보 박스 */}
@@ -56,12 +58,14 @@ export default function SplitFormLayout({
 
       {/* 우측: 미리보기 */}
       <div 
-        className="pl-6 pb-12 overflow-y-auto custom-scrollbar"
-        style={{ maxHeight: '100%', minHeight: 0 }}
+        className={rightContentPadding ? "pl-6 pt-6 pb-20 overflow-y-auto custom-scrollbar" : "overflow-y-auto custom-scrollbar"}
+        style={{ 
+          maxHeight: scrollHeight || '100%', 
+          minHeight: 0,
+          width: '100%'
+        }}
       >
-        <div className={infoBox ? 'pt-[22px]' : 'pt-6'}>
-          {rightContent}
-        </div>
+        {rightContent}
       </div>
     </div>
   );

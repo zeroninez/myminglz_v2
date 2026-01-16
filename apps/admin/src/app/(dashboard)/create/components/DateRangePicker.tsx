@@ -73,6 +73,7 @@ export default function DateRangePicker({ startDate, endDate, onDateChange }: Da
             <div className="bg-white rounded border border-gray-200 shadow-xl p-6 pointer-events-auto">
               <DayPicker
                 mode="range"
+                numberOfMonths={2}
                 selected={selectedRange}
                 onSelect={(range) => {
                   if (range) {

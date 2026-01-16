@@ -23,14 +23,28 @@
 
   /* 커스텀 스크롤바 */
   .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
   }
 
   /* 스크롤바 버튼(화살표) 완전히 제거 */
+  .custom-scrollbar::-webkit-scrollbar-button {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
   .custom-scrollbar::-webkit-scrollbar-button:start:decrement,
   .custom-scrollbar::-webkit-scrollbar-button:end:increment {
     display: none;
     width: 0;
     height: 0;
+  }
+
+  /* 스크롤바 코너 제거 */
+  .custom-scrollbar::-webkit-scrollbar-corner {
+    display: none;
+    background: transparent;
   }
 
   .custom-scrollbar::-webkit-scrollbar-track {

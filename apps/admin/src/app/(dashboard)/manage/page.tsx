@@ -35,10 +35,13 @@ export default function ManagePage() {
   const loading = eventsLoading;
   const error = eventsError;
 
-  // Context에서 이벤트 데이터 가져오기
+  // Context에서 이벤트 데이터 가져오기 - 불필요한 업데이트 방지
   useEffect(() => {
-    if (cachedEvents.length > 0) {
+    if (cachedEvents && cachedEvents.length > 0) {
       setEvents(cachedEvents as Event[]);
+    } else if (cachedEvents && cachedEvents.length === 0) {
+      // 빈 배열인 경우도 업데이트하여 초기화 상태 유지
+      setEvents([]);
     }
   }, [cachedEvents]);
 

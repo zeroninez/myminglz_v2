@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import EventInfoSection, { type EventInfoSectionRef } from './components/EventInfoSection';
 import EventMissionSection from './components/EventMissionSection';
 import LandingPageSection, { type LandingPageSectionRef } from './components/LandingPageSection';
 import { convertPageBuilderToDB } from './utils/dataConverter';
+import ConfirmEventCreationModal from './components/ConfirmEventCreationModal';
+import EventCreationSuccessModal from './components/EventCreationSuccessModal';
 
 // 각 섹션의 데이터 타입
 interface EventInfoData {
@@ -44,6 +46,8 @@ export default function CreatePage() {
   const [activeStepLeft, setActiveStepLeft] = useState(0);
   const [activeStepWidth, setActiveStepWidth] = useState(0);
   const [isFormValid, setIsFormValid] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   
   // 각 섹션의 데이터를 저장할 ref
   const eventInfoDataRef = useRef<EventInfoData>({});
@@ -56,13 +60,13 @@ export default function CreatePage() {
   });
   const landingPageSectionRef = useRef<LandingPageSectionRef>(null);
 
-  const handlePrevious = () => {
+  const handlePrevious = useCallback(() => {
     if (currentStep > 0) {
       setCurrentStep((prev) => prev - 1);
     }
-  };
+  }, [currentStep]);
 
-  const handleNext = async () => {
+  const handleNext = useCallback(async () => {
     // 스텝 0, 1(기본정보, 사용처등록)에서 다음으로 넘어가기 전 검증
     if (currentStep === 0 || currentStep === 1) {
       if (eventInfoSectionRef.current) {
@@ -77,10 +81,10 @@ export default function CreatePage() {
     if (currentStep < steps.length - 1) {
       setCurrentStep((prev) => prev + 1);
     } else {
-      // 최종 제출
-      await handleSubmit();
+      // 최종 제출 - 확인 모달 표시
+      setShowConfirmModal(true);
     }
-  };
+  }, [currentStep, steps.length]);
 
   const handleSubmit = async () => {
     try {
@@ -242,9 +246,8 @@ export default function CreatePage() {
         throw new Error(result.error || '이벤트 생성에 실패했습니다.');
       }
 
-      // 4. 성공 시 관리 페이지로 이동
-      alert('이벤트가 성공적으로 생성되었습니다!');
-      router.push('/manage');
+      // 4. 성공 시 완료 모달 표시
+      setShowSuccessModal(true);
     } catch (error: any) {
       console.error('이벤트 생성 오류:', error);
       alert(error.message || '이벤트 생성 중 오류가 발생했습니다.');
@@ -253,7 +256,10 @@ export default function CreatePage() {
     }
   };
 
-  const nextLabel = currentStep === steps.length - 1 ? '완료' : '다음';
+  const nextLabel = useMemo(() => 
+    currentStep === steps.length - 1 ? '완료' : '다음',
+    [currentStep, steps.length]
+  );
 
   // 필수 정보 검증 (스텝 0, 1일 때만)
   useEffect(() => {
@@ -278,18 +284,22 @@ export default function CreatePage() {
     return () => clearInterval(interval);
   }, [currentStep, eventInfoDataRef.current]);
 
-  // 활성 스텝 위치 계산
+  // 활성 스텝 위치 계산 - requestAnimationFrame으로 최적화
   useEffect(() => {
     const activeStepRef = stepRefs.current[currentStep];
     if (activeStepRef) {
-      const container = activeStepRef.parentElement?.parentElement;
-      if (container) {
-        const containerRect = container.getBoundingClientRect();
-        const stepRect = activeStepRef.getBoundingClientRect();
-        const padding = 8; // 좌우 각각 8px 확장
-        setActiveStepLeft((stepRect.left - containerRect.left) - padding);
-        setActiveStepWidth(stepRect.width + (padding * 2));
-      }
+      // 다음 프레임에서 실행하여 레이아웃 계산 최적화
+      const rafId = requestAnimationFrame(() => {
+        const container = activeStepRef.parentElement?.parentElement;
+        if (container) {
+          const containerRect = container.getBoundingClientRect();
+          const stepRect = activeStepRef.getBoundingClientRect();
+          const padding = 8; // 좌우 각각 8px 확장
+          setActiveStepLeft((stepRect.left - containerRect.left) - padding);
+          setActiveStepWidth(stepRect.width + (padding * 2));
+        }
+      });
+      return () => cancelAnimationFrame(rafId);
     }
   }, [currentStep]);
 
@@ -472,6 +482,25 @@ export default function CreatePage() {
           </div>
         </div>
       )}
+
+      {/* 확인 모달 */}
+      <ConfirmEventCreationModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={async () => {
+          setShowConfirmModal(false);
+          await handleSubmit();
+        }}
+      />
+
+      {/* 완료 모달 */}
+      <EventCreationSuccessModal
+        isOpen={showSuccessModal}
+        onConfirm={() => {
+          setShowSuccessModal(false);
+          window.location.href = '/manage';
+        }}
+      />
     </div>
   );
 }
