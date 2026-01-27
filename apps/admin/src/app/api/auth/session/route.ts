@@ -54,7 +54,7 @@ export async function GET() {
           user: {
             id: refreshData.user?.id,
             email: refreshData.user?.email,
-            name: refreshData.user?.user_metadata?.name,
+            name: refreshData.user?.user_metadata?.company_name || refreshData.user?.user_metadata?.name,
             role: userRole,
           },
         });
@@ -98,7 +98,7 @@ export async function GET() {
       user: {
         id: data.user.id,
         email: data.user.email,
-        name: data.user.user_metadata?.name,
+        name: data.user.user_metadata?.company_name || data.user.user_metadata?.name,
         role: userRole,
       },
     });

@@ -26,6 +26,10 @@ interface EventStats {
   totalInflow: number;
   couponIssued: number;
   couponUsed: number;
+  totalInflowToday?: number;
+  totalInflowYesterday?: number;
+  couponIssuedToday?: number;
+  couponUsedToday?: number;
   couponIssuedYesterday?: number;
   couponUsedYesterday?: number;
 }
@@ -89,7 +93,13 @@ export default function EventHomePage() {
             if (statsResult.success && statsResult.data?.events) {
               const eventStat = statsResult.data.events.find((e: any) => e.id === event.id);
               if (eventStat) {
-                // 어제 통계도 조회
+                // 오늘과 어제 통계 조회
+                const todayResponse = await fetch(`/api/stats?eventId=${event.id}&period=today`);
+                const todayResult = await todayResponse.json();
+                const todayStat = todayResult.success && todayResult.data?.events
+                  ? todayResult.data.events.find((e: any) => e.id === event.id)
+                  : null;
+
                 const yesterdayResponse = await fetch(`/api/stats?eventId=${event.id}&period=yesterday`);
                 const yesterdayResult = await yesterdayResponse.json();
                 const yesterdayStat = yesterdayResult.success && yesterdayResult.data?.events
@@ -103,6 +113,10 @@ export default function EventHomePage() {
                     totalInflow: eventStat.totalInflow || 0,
                     couponIssued: eventStat.couponIssued || 0,
                     couponUsed: eventStat.couponUsed || 0,
+                    totalInflowToday: todayStat?.totalInflow || 0,
+                    totalInflowYesterday: yesterdayStat?.totalInflow || 0,
+                    couponIssuedToday: todayStat?.couponIssued || 0,
+                    couponUsedToday: todayStat?.couponUsed || 0,
                     couponIssuedYesterday: yesterdayStat?.couponIssued || 0,
                     couponUsedYesterday: yesterdayStat?.couponUsed || 0,
                   },

@@ -210,22 +210,27 @@ export default function StatsPage() {
       const result = await response.json();
 
       if (!result.success) {
+        // 인증 오류이고 재시도 가능한 경우 조용히 재시도
+        if (result.error?.includes('인증') && retryCount < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, 500)); // 0.5초 대기
+          return fetchStats(retryCount + 1);
+        }
+        
+        // 권한 오류의 경우 조용히 처리 (에러 로그 없이)
+        if (result.error?.includes('권한')) {
+          setStats(null);
+          setSelectedEventStats(null);
+          return;
+        }
+        
+        // 기타 오류만 로그에 기록
         console.error('통계 데이터 로드 오류:', {
           error: result.error,
           params: params.toString(),
           selectedEvent,
           selectedPeriod,
-          customStartDate,
-          customEndDate,
           retryCount
         });
-        
-        // 인증 오류이고 재시도 가능한 경우 재시도
-        if (result.error?.includes('인증') && retryCount < maxRetries) {
-          console.log(`인증 오류로 인한 재시도 (${retryCount + 1}/${maxRetries})`);
-          await new Promise(resolve => setTimeout(resolve, 1000)); // 1초 대기
-          return fetchStats(retryCount + 1);
-        }
         
         // API 응답은 성공했지만 데이터 로드 실패 시 빈 데이터로 설정
         setStats(null);
@@ -243,7 +248,13 @@ export default function StatsPage() {
         setSelectedEventStats(null);
       }
     } catch (err: any) {
-      console.error('통계 데이터 로드 오류:', err);
+      // 초기 로딩 시 인증 관련 오류는 조용히 처리
+      if (retryCount === 0 && (err.message?.includes('인증') || err.message?.includes('권한'))) {
+        // 조용히 처리
+      } else {
+        console.error('통계 데이터 로드 오류:', err);
+      }
+      
       // 네트워크 오류 등 예외 발생 시 빈 데이터로 설정
       setStats(null);
       setSelectedEventStats(null);
@@ -254,10 +265,16 @@ export default function StatsPage() {
 
   // 이벤트 로드 완료 시 및 필터 변경 시 통계 데이터 자동 조회
   useEffect(() => {
-    if (events.length > 0) {
-      fetchStats();
+    // 이벤트가 로드되고 로딩 상태가 아닐 때만 통계 데이터 조회
+    if (events.length > 0 && !eventsLoading) {
+      // 약간의 지연을 두어 인증 상태가 안정화되도록 함
+      const timer = setTimeout(() => {
+        fetchStats();
+      }, 100);
+      
+      return () => clearTimeout(timer);
     }
-  }, [events.length, selectedEvent, selectedPeriod, customStartDate, customEndDate, fetchStats]);
+  }, [events.length, eventsLoading, selectedEvent, selectedPeriod, customStartDate, customEndDate, fetchStats]);
 
   // 이벤트가 변경될 때 커스텀 날짜 초기화 및 종료된 이벤트 처리
   useEffect(() => {

@@ -21,6 +21,10 @@ interface EventStats {
   totalInflow: number;
   couponIssued: number;
   couponUsed: number;
+  totalInflowToday?: number;
+  totalInflowYesterday?: number;
+  couponIssuedToday?: number;
+  couponUsedToday?: number;
   couponIssuedYesterday?: number;
   couponUsedYesterday?: number;
 }
@@ -119,11 +123,14 @@ export default function EventCard({ event, stats, baseUrl }: EventCardProps) {
     ? stores[0].name
     : `${stores[0].name} 외 ${storeCount - 1}곳`;
 
+  const totalInflowDiff = stats
+    ? (stats.totalInflowToday || 0) - (stats.totalInflowYesterday || 0)
+    : 0;
   const couponIssuedDiff = stats
-    ? (stats.couponIssued || 0) - (stats.couponIssuedYesterday || 0)
+    ? (stats.couponIssuedToday || 0) - (stats.couponIssuedYesterday || 0)
     : 0;
   const couponUsedDiff = stats
-    ? (stats.couponUsed || 0) - (stats.couponUsedYesterday || 0)
+    ? (stats.couponUsedToday || 0) - (stats.couponUsedYesterday || 0)
     : 0;
 
   const eventUrl = `${baseUrl}/${event.domain_code}`;
@@ -178,7 +185,7 @@ export default function EventCard({ event, stats, baseUrl }: EventCardProps) {
 
           {/* 하단: 통계 */}
           <div className="grid grid-cols-3 gap-6">
-            <StatItem label="이벤트 참여수" value={stats?.totalInflow || 0} />
+            <StatItem label="이벤트 참여수" value={stats?.totalInflow || 0} diff={totalInflowDiff} showDiff />
             <StatItem label="쿠폰 발급 수" value={stats?.couponIssued || 0} diff={couponIssuedDiff} showDiff />
             <StatItem label="쿠폰 사용 수" value={stats?.couponUsed || 0} diff={couponUsedDiff} showDiff />
           </div>
