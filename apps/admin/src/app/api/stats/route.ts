@@ -31,6 +31,12 @@ export async function GET(request: Request) {
     // 사용자 확인
     const { data: userData, error: userError } = await supabase.auth.getUser(accessToken);
     if (userError || !userData.user) {
+      console.error('사용자 인증 실패:', {
+        userError: userError?.message,
+        hasUserData: !!userData,
+        hasUser: !!userData?.user,
+        accessTokenLength: accessToken?.length
+      });
       return NextResponse.json(
         { success: false, error: '인증에 실패했습니다.' },
         { status: 401 }
@@ -79,7 +85,18 @@ export async function GET(request: Request) {
     const endDate = searchParams.get('endDate');
     const allUsers = searchParams.get('all') === 'true'; // 관리자가 모든 사용자 통계 조회할 때
     
-    console.log('통계 API - isAdmin:', isAdmin, 'userRole:', userRole, 'email:', userData.user.email, 'allUsers:', allUsers);
+    console.log('통계 API 요청:', {
+      userId,
+      email: userData.user.email,
+      userRole,
+      isAdmin,
+      eventId,
+      period,
+      startDate,
+      endDate,
+      allUsers,
+      url: request.url
+    });
 
     // 날짜 범위 계산
     let dateRange: { start: Date; end: Date } | null = null;

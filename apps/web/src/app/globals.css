@@ -21,3 +21,9 @@
     @apply bg-gray-100 text-gray-900 hover:bg-gray-200;
   }
 }
+
+/* nextjs-portal 스타일 */
+nextjs-portal {
+  left: 0px !important;
+  top: 0px !important;
+}
