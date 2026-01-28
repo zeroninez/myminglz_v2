@@ -145,18 +145,29 @@ export default function EventHomePage() {
   // 이벤트 상태 계산을 메모이제이션
   const getEventStatus = useCallback((event: Event): 'ongoing' | 'ended' | 'saved' => {
     if (!event.start_date && !event.end_date) return 'saved';
+    
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    if (event.end_date) {
+    
+    if (event.start_date && event.end_date) {
+      const startDate = new Date(event.start_date);
+      startDate.setHours(0, 0, 0, 0);
+      
       const endDate = new Date(event.end_date);
-      endDate.setHours(0, 0, 0, 0);
-      if (endDate < today) return 'ended';
+      endDate.setHours(23, 59, 59, 999); // 종료일은 해당 날짜의 마지막 시간까지
+      
+      if (today < startDate) return 'saved'; // 아직 시작 안됨
+      if (today > endDate) return 'ended'; // 종료됨
+      return 'ongoing'; // 진행중
     }
+    
+    // start_date나 end_date 중 하나만 있는 경우
     if (event.start_date) {
       const startDate = new Date(event.start_date);
       startDate.setHours(0, 0, 0, 0);
       if (startDate <= today) return 'ongoing';
     }
+    
     return 'saved';
   }, []);
 

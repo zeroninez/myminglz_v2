@@ -161,12 +161,17 @@ export default function ManagePage() {
   const getEventStatus = (event: Event): EventStatus => {
     if (!event.start_date || !event.end_date) return 'waiting';
     
-    const now = new Date();
-    const startDate = new Date(event.start_date);
-    const endDate = new Date(event.end_date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     
-    if (now < startDate) return 'waiting';
-    if (now > endDate) return 'ended';
+    const startDate = new Date(event.start_date);
+    startDate.setHours(0, 0, 0, 0);
+    
+    const endDate = new Date(event.end_date);
+    endDate.setHours(23, 59, 59, 999); // 종료일은 해당 날짜의 마지막 시간까지
+    
+    if (today < startDate) return 'waiting';
+    if (today > endDate) return 'ended';
     return 'ongoing';
   };
 
