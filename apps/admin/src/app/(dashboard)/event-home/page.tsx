@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import EventCard from './components/EventCard';
 import UserSidebar from './components/UserSidebar';
 import EventFilter from './components/EventFilter';
 import { useEvents } from '@/contexts/EventsContext';
+import { apiGet } from '@/utils/apiClient';
 
 interface Event {
   id: string;
@@ -49,6 +50,7 @@ export default function EventHomePage() {
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [selectedFilter, setSelectedFilter] = useState<string>('전체');
   const [currentDate] = useState(new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\. /g, '.').replace(/\.$/, ''));
+  const [lastStatsUpdate, setLastStatsUpdate] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchUserInfo = async () => {
@@ -76,80 +78,72 @@ export default function EventHomePage() {
     }
   }, [cachedEvents]);
 
-  // 통계 데이터 조회 (이벤트 목록이 있을 때만)
-  useEffect(() => {
-    if (events.length === 0) return;
+  // 통계 데이터 조회 (새로운 최적화된 API 사용)
+  const fetchStats = useCallback(async (eventIds: string[], forceRefresh = false) => {
+    if (eventIds.length === 0) return;
 
-    const fetchStats = async () => {
-      try {
-        setStatsLoading(true);
+    // 2분 이내에 가져온 통계 데이터가 있고 강제 새로고침이 아닌 경우 스킵
+    const twoMinutesAgo = Date.now() - 2 * 60 * 1000;
+    if (!forceRefresh && lastStatsUpdate && lastStatsUpdate > twoMinutesAgo && Object.keys(eventStats).length > 0) {
+      return;
+    }
+
+    try {
+      setStatsLoading(true);
+      
+      console.log('통계 데이터 조회 시작:', eventIds);
+      
+      // 새로운 최적화된 API 사용
+      const response = await apiGet(`/api/event-home-stats?eventIds=${eventIds.join(',')}`);
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('API 응답:', result);
         
-        // 각 이벤트의 통계 조회
-        const statsPromises = events.map(async (event: Event) => {
-          try {
-            const statsResponse = await fetch(`/api/stats?eventId=${event.id}&period=all`);
-            const statsResult = await statsResponse.json();
-            
-            if (statsResult.success && statsResult.data?.events) {
-              const eventStat = statsResult.data.events.find((e: any) => e.id === event.id);
-              if (eventStat) {
-                // 오늘과 어제 통계 조회
-                const todayResponse = await fetch(`/api/stats?eventId=${event.id}&period=today`);
-                const todayResult = await todayResponse.json();
-                const todayStat = todayResult.success && todayResult.data?.events
-                  ? todayResult.data.events.find((e: any) => e.id === event.id)
-                  : null;
-
-                const yesterdayResponse = await fetch(`/api/stats?eventId=${event.id}&period=yesterday`);
-                const yesterdayResult = await yesterdayResponse.json();
-                const yesterdayStat = yesterdayResult.success && yesterdayResult.data?.events
-                  ? yesterdayResult.data.events.find((e: any) => e.id === event.id)
-                  : null;
-
-                return {
-                  id: event.id,
-                  stats: {
-                    id: event.id,
-                    totalInflow: eventStat.totalInflow || 0,
-                    couponIssued: eventStat.couponIssued || 0,
-                    couponUsed: eventStat.couponUsed || 0,
-                    totalInflowToday: todayStat?.totalInflow || 0,
-                    totalInflowYesterday: yesterdayStat?.totalInflow || 0,
-                    couponIssuedToday: todayStat?.couponIssued || 0,
-                    couponUsedToday: todayStat?.couponUsed || 0,
-                    couponIssuedYesterday: yesterdayStat?.couponIssued || 0,
-                    couponUsedYesterday: yesterdayStat?.couponUsed || 0,
-                  },
-                };
-              }
-            }
-            return { id: event.id, stats: null };
-          } catch (err) {
-            console.error(`이벤트 ${event.id} 통계 조회 오류:`, err);
-            return { id: event.id, stats: null };
-          }
-        });
-
-        const statsResults = await Promise.all(statsPromises);
-        const statsMap: Record<string, EventStats> = {};
-        statsResults.forEach(({ id, stats }) => {
-          if (stats) {
-            statsMap[id] = stats;
-          }
-        });
-        setEventStats(statsMap);
-
-      } catch (err: any) {
-        console.error('통계 데이터 로드 오류:', err);
-      } finally {
-        setStatsLoading(false);
+        if (result.success && result.data) {
+          const statsMap: Record<string, EventStats> = {};
+          result.data.forEach((stat: any) => {
+            statsMap[stat.id] = {
+              id: stat.id,
+              totalInflow: stat.totalInflow || 0,
+              couponIssued: stat.couponIssued || 0,
+              couponUsed: stat.couponUsed || 0,
+              totalInflowToday: stat.totalInflowToday || 0,
+              totalInflowYesterday: stat.totalInflowYesterday || 0,
+              couponIssuedToday: stat.couponIssuedToday || 0,
+              couponUsedToday: stat.couponUsedToday || 0,
+              couponIssuedYesterday: stat.couponIssuedYesterday || 0,
+              couponUsedYesterday: stat.couponUsedYesterday || 0,
+            };
+          });
+          console.log('처리된 통계 데이터:', statsMap);
+          setEventStats(statsMap);
+          setLastStatsUpdate(Date.now());
+        } else {
+          console.error('API 응답 오류:', result);
+        }
+      } else {
+        console.error('통계 데이터 조회 실패:', response.status, response.statusText);
+        const errorText = await response.text();
+        console.error('오류 내용:', errorText);
       }
-    };
+    } catch (err: any) {
+      console.error('통계 데이터 로드 오류:', err);
+    } finally {
+      setStatsLoading(false);
+    }
+  }, [lastStatsUpdate, eventStats]);
 
-    fetchStats();
-  }, [events]);
+  // 이벤트 목록이 변경될 때만 통계 데이터 조회
+  useEffect(() => {
+    if (events.length > 0) {
+      const eventIds = events.map(event => event.id);
+      fetchStats(eventIds);
+    }
+  }, [events, fetchStats]);
 
-  const getEventStatus = (event: Event): 'ongoing' | 'ended' | 'saved' => {
+  // 이벤트 상태 계산을 메모이제이션
+  const getEventStatus = useCallback((event: Event): 'ongoing' | 'ended' | 'saved' => {
     if (!event.start_date && !event.end_date) return 'saved';
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -164,27 +158,62 @@ export default function EventHomePage() {
       if (startDate <= today) return 'ongoing';
     }
     return 'saved';
-  };
+  }, []);
 
-  const filteredEvents = selectedFilter === '전체' 
-    ? events.filter(e => getEventStatus(e) === 'ongoing')
-    : events.filter(e => e.name === selectedFilter && getEventStatus(e) === 'ongoing');
+  // 이벤트 상태별 분류를 메모이제이션
+  const eventsByStatus = useMemo(() => {
+    const ongoing: Event[] = [];
+    const ended: Event[] = [];
+    const saved: Event[] = [];
 
-  const eventNames = Array.from(new Set(events.filter(e => getEventStatus(e) === 'ongoing').map(e => e.name)));
+    events.forEach(event => {
+      const status = getEventStatus(event);
+      switch (status) {
+        case 'ongoing':
+          ongoing.push(event);
+          break;
+        case 'ended':
+          ended.push(event);
+          break;
+        case 'saved':
+          saved.push(event);
+          break;
+      }
+    });
+
+    return { ongoing, ended, saved };
+  }, [events, getEventStatus]);
+
+  // 필터링된 이벤트 목록
+  const filteredEvents = useMemo(() => {
+    return selectedFilter === '전체' 
+      ? eventsByStatus.ongoing
+      : eventsByStatus.ongoing.filter(e => e.name === selectedFilter);
+  }, [selectedFilter, eventsByStatus.ongoing]);
+
+  // 이벤트 이름 목록
+  const eventNames = useMemo(() => {
+    return Array.from(new Set(eventsByStatus.ongoing.map(e => e.name)));
+  }, [eventsByStatus.ongoing]);
+
+  // 통계 수치들
   const totalEvents = events.length;
-  const ongoingEvents = events.filter(e => getEventStatus(e) === 'ongoing').length;
-  const savedEvents = events.filter(e => getEventStatus(e) === 'saved').length;
-  const endedEvents = events.filter(e => getEventStatus(e) === 'ended').length;
+  const ongoingEvents = eventsByStatus.ongoing.length;
+  const savedEvents = eventsByStatus.saved.length;
+  const endedEvents = eventsByStatus.ended.length;
 
   const baseUrl = process.env.NEXT_PUBLIC_WEB_URL || 'https://myminglz-v2-web.vercel.app';
   const displayName = userInfo?.name || userInfo?.email?.split('@')[0] || '사용자';
-  const loading = eventsLoading || statsLoading;
   const error = eventsError;
 
+  // 초기 로딩 상태 (이벤트 데이터가 없을 때만)
   if (eventsLoading && events.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-gray-500">로딩 중...</div>
+        <div className="flex items-center gap-3">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+          <div className="text-gray-500">이벤트 데이터를 불러오는 중...</div>
+        </div>
       </div>
     );
   }
@@ -252,12 +281,13 @@ export default function EventHomePage() {
         ) : (
           <div className="space-y-4">
             {filteredEvents.map((event) => (
-              <EventCard
-                key={event.id}
-                event={event}
-                stats={eventStats[event.id]}
-                baseUrl={baseUrl}
-              />
+                    <EventCard
+                      key={event.id}
+                      event={event}
+                      stats={eventStats[event.id]}
+                      baseUrl={baseUrl}
+                      isStatsLoading={statsLoading}
+                    />
             ))}
           </div>
         )}

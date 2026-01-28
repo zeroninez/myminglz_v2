@@ -77,9 +77,10 @@ interface EventCardProps {
   event: Event;
   stats?: EventStats;
   baseUrl: string;
+  isStatsLoading?: boolean;
 }
 
-export default function EventCard({ event, stats, baseUrl }: EventCardProps) {
+export default function EventCard({ event, stats, baseUrl, isStatsLoading = false }: EventCardProps) {
   const formatDateTime = (dateString: string | null): string => {
     if (!dateString) return '-';
     const date = new Date(dateString);
@@ -185,9 +186,28 @@ export default function EventCard({ event, stats, baseUrl }: EventCardProps) {
 
           {/* 하단: 통계 */}
           <div className="grid grid-cols-3 gap-6">
-            <StatItem label="이벤트 참여수" value={stats?.totalInflow || 0} diff={totalInflowDiff} showDiff />
-            <StatItem label="쿠폰 발급 수" value={stats?.couponIssued || 0} diff={couponIssuedDiff} showDiff />
-            <StatItem label="쿠폰 사용 수" value={stats?.couponUsed || 0} diff={couponUsedDiff} showDiff />
+            {isStatsLoading ? (
+              <>
+                <div className="flex flex-col items-center">
+                  <div className="animate-pulse bg-gray-200 h-4 w-16 rounded mb-1"></div>
+                  <div className="animate-pulse bg-gray-200 h-6 w-8 rounded"></div>
+                </div>
+                <div className="flex flex-col items-center">
+                  <div className="animate-pulse bg-gray-200 h-4 w-16 rounded mb-1"></div>
+                  <div className="animate-pulse bg-gray-200 h-6 w-8 rounded"></div>
+                </div>
+                <div className="flex flex-col items-center">
+                  <div className="animate-pulse bg-gray-200 h-4 w-16 rounded mb-1"></div>
+                  <div className="animate-pulse bg-gray-200 h-6 w-8 rounded"></div>
+                </div>
+              </>
+            ) : (
+              <>
+                <StatItem label="이벤트 참여수" value={stats?.totalInflow || 0} diff={totalInflowDiff} showDiff />
+                <StatItem label="쿠폰 발급 수" value={stats?.couponIssued || 0} diff={couponIssuedDiff} showDiff />
+                <StatItem label="쿠폰 사용 수" value={stats?.couponUsed || 0} diff={couponUsedDiff} showDiff />
+              </>
+            )}
           </div>
         </div>
       </div>

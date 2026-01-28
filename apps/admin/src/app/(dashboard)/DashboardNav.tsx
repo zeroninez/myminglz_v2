@@ -24,7 +24,7 @@ export default function DashboardNav({ isAdmin = false }: DashboardNavProps) {
   const navItems = isAdmin ? adminNavItems : regularNavItems;
 
   return (
-    <nav className="min-h-[calc(100vh-73px)]" style={{ backgroundColor: '#F3F4F6', width: '240px' }}>
+    <nav className="min-h-[calc(100vh-73px)] flex-shrink-0" style={{ backgroundColor: '#F3F4F6', width: '240px' }}>
       <div className="flex flex-col">
         {navItems.map((item) => {
           const isActive = pathname === item.href || (item.href === '/dashboard' && pathname === '/');

@@ -62,12 +62,14 @@ export async function POST(request: Request) {
       },
     });
 
-    // Supabase 세션 토큰 쿠키에 저장 (7일 유효)
+    // Supabase 세션 토큰 쿠키에 저장
+    // Access Token: 1시간 (Supabase 기본값, 서버에서 제어됨)
+    // Refresh Token: 30일 (더 긴 기간으로 설정)
     response.cookies.set('sb-access-token', data.session.access_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7, // 7일
+      maxAge: 60 * 60, // 1시간 (JWT 토큰 만료와 동일)
       path: '/',
     });
 
@@ -75,7 +77,7 @@ export async function POST(request: Request) {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7, // 7일
+      maxAge: 60 * 60 * 24 * 30, // 30일
       path: '/',
     });
 

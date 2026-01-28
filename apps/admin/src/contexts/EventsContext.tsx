@@ -35,12 +35,23 @@ export function EventsProvider({ children }: { children: ReactNode }) {
   const [lastFetched, setLastFetched] = useState<number | null>(null);
   const [initialized, setInitialized] = useState(false);
 
-  const fetchEvents = useCallback(async () => {
+  const fetchEvents = useCallback(async (forceRefresh = false) => {
+    // 5분 이내에 가져온 데이터가 있고 강제 새로고침이 아닌 경우 캐시된 데이터 사용
+    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+    if (!forceRefresh && lastFetched && lastFetched > fiveMinutesAgo && events.length > 0) {
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
       
-      const response = await fetch('/api/events');
+      const response = await fetch('/api/events', {
+        credentials: 'include',
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
+      });
       const result = await response.json();
 
       if (!result.success) {
@@ -57,10 +68,10 @@ export function EventsProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [lastFetched, events.length]);
 
-  const refetch = useCallback(async () => {
-    await fetchEvents();
+  const refetch = useCallback(async (forceRefresh = false) => {
+    await fetchEvents(forceRefresh);
   }, [fetchEvents]);
 
   // 초기 로드 (한 번만 실행)
