@@ -57,11 +57,18 @@ export default function SkeletonLoader({
       
     case 'stat':
       return (
-        <div className={`${baseClasses} p-4 ${className}`}>
-          <div className="text-center">
-            <div className="h-4 bg-gray-300 rounded w-20 mx-auto mb-2"></div>
-            <div className="h-8 bg-gray-300 rounded w-12 mx-auto"></div>
+        <div className={`bg-gray-50 rounded border border-gray-200 p-6 ${className}`}>
+          {/* 아이콘 + 제목 */}
+          <div className="flex items-center mb-4">
+            <div className="w-12 h-12 rounded bg-gray-300 mr-3"></div>
+            <div className="h-4 bg-gray-300 rounded w-24"></div>
           </div>
+          {/* 메인 숫자 */}
+          <div className="text-3xl font-bold mb-2">
+            <div className="h-8 bg-gray-300 rounded w-20"></div>
+          </div>
+          {/* 설명 텍스트 */}
+          <div className="h-4 bg-gray-300 rounded w-32"></div>
         </div>
       );
       
@@ -75,9 +82,9 @@ export function StatsPageSkeleton() {
   return (
     <div className="space-y-6">
       {/* 평균 이벤트 현황 스켈레톤 */}
-      <div className="grid grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {Array.from({ length: 4 }).map((_, i) => (
-          <SkeletonLoader key={i} variant="stat" className="h-24" />
+          <SkeletonLoader key={i} variant="stat" />
         ))}
       </div>
       
