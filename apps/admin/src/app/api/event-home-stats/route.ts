@@ -96,11 +96,17 @@ export async function GET(request: Request) {
         }
 
         // location 조회 (쿠폰 데이터를 위해 필요)
-        const { data: location } = await supabase
+        const { data: location, error: locationError } = await supabase
           .from('locations')
           .select('id')
-          .eq('domain_code', event.domain_code)
+          .eq('slug', event.domain_code)
           .single();
+
+        console.log(`이벤트 ${eventId} location 조회:`, {
+          domain_code: event.domain_code,
+          location,
+          locationError
+        });
 
         // 방문 수 조회 (page_visits 테이블 사용, event_id 기준)
         const [allVisitsResult, todayVisitsResult, yesterdayVisitsResult] = await Promise.all([
@@ -129,18 +135,24 @@ export async function GET(request: Request) {
 
         // 쿠폰 데이터 조회 (location이 있는 경우에만)
         let allCouponsResult: any = { data: null, count: 0 };
-        let todayCouponsResult: any = { data: null, count: 0 };
-        let yesterdayCouponsResult: any = { data: null, count: 0 };
+        let todayCouponsIssuedResult: any = { data: null, count: 0 };
+        let yesterdayCouponsIssuedResult: any = { data: null, count: 0 };
 
         if (location) {
+          console.log(`이벤트 ${eventId} 쿠폰 조회 시작:`, {
+            location_id: location.id,
+            todayRange: `${todayUtcStart.toISOString()} ~ ${todayUtcEnd.toISOString()}`,
+            yesterdayRange: `${yesterdayUtcStart.toISOString()} ~ ${yesterdayUtcEnd.toISOString()}`
+          });
+
           const couponResults = await Promise.all([
-            // 전체 쿠폰
+            // 전체 쿠폰 (발급 및 사용 정보 포함)
             supabase
               .from('coupons')
               .select('created_at, is_used, used_at', { count: 'exact' })
               .eq('location_id', location.id),
             
-            // 오늘 쿠폰 (한국 시간 기준)
+            // 오늘 발급된 쿠폰 (한국 시간 기준)
             supabase
               .from('coupons')
               .select('created_at, is_used, used_at', { count: 'exact' })
@@ -148,7 +160,7 @@ export async function GET(request: Request) {
               .gte('created_at', todayUtcStart.toISOString())
               .lt('created_at', todayUtcEnd.toISOString()),
             
-            // 어제 쿠폰 (한국 시간 기준)
+            // 어제 발급된 쿠폰 (한국 시간 기준)
             supabase
               .from('coupons')
               .select('created_at, is_used, used_at', { count: 'exact' })
@@ -157,35 +169,62 @@ export async function GET(request: Request) {
               .lt('created_at', yesterdayUtcEnd.toISOString())
           ]);
 
-          [allCouponsResult, todayCouponsResult, yesterdayCouponsResult] = couponResults;
+          [allCouponsResult, todayCouponsIssuedResult, yesterdayCouponsIssuedResult] = couponResults;
+          
+          console.log(`이벤트 ${eventId} 쿠폰 조회 결과:`, {
+            allCouponsCount: allCouponsResult.count,
+            allCouponsError: allCouponsResult.error,
+            todayCouponsCount: todayCouponsIssuedResult.count,
+            todayCouponsError: todayCouponsIssuedResult.error,
+            yesterdayCouponsCount: yesterdayCouponsIssuedResult.count,
+            yesterdayCouponsError: yesterdayCouponsIssuedResult.error
+          });
+        } else {
+          console.log(`이벤트 ${eventId}: location이 없어서 쿠폰 데이터를 조회하지 않음`);
         }
 
-        // 통계 계산 (한국 시간 기준)
-        const calculateStats = (visitsResult: any, couponsResult: any, dateRange?: { start: Date, end: Date }) => {
+        // 통계 계산 함수들
+        const calculateAllStats = (visitsResult: any, couponsResult: any) => {
           const totalInflow = visitsResult.count || (visitsResult.data ? visitsResult.data.length : 0);
           const couponIssued = couponsResult.count || (couponsResult.data ? couponsResult.data.length : 0);
+          const couponUsed = couponsResult.data ? couponsResult.data.filter((c: any) => c.is_used).length : 0;
           
+          return { totalInflow, couponIssued, couponUsed };
+        };
+
+        const calculateDailyStats = (visitsResult: any, issuedCouponsResult: any, allCouponsData: any[], dateRange: { start: Date, end: Date }) => {
+          const totalInflow = visitsResult.count || (visitsResult.data ? visitsResult.data.length : 0);
+          const couponIssued = issuedCouponsResult.count || (issuedCouponsResult.data ? issuedCouponsResult.data.length : 0);
+          
+          // 해당 날짜에 사용된 쿠폰 수 계산 (used_at 기준)
           let couponUsed = 0;
-          if (couponsResult.data) {
-            if (dateRange) {
-              // 특정 날짜 범위의 사용 수 (used_at 기준, 한국 시간)
-              couponUsed = couponsResult.data.filter((c: any) => {
-                if (!c.is_used || !c.used_at) return false;
-                const usedDate = new Date(c.used_at);
-                return usedDate >= dateRange.start && usedDate < dateRange.end;
-              }).length;
-            } else {
-              // 전체 사용 수
-              couponUsed = couponsResult.data.filter((c: any) => c.is_used).length;
-            }
+          if (allCouponsData && allCouponsData.length > 0) {
+            couponUsed = allCouponsData.filter((c: any) => {
+              if (!c.is_used || !c.used_at) return false;
+              const usedDate = new Date(c.used_at);
+              return usedDate >= dateRange.start && usedDate < dateRange.end;
+            }).length;
           }
           
           return { totalInflow, couponIssued, couponUsed };
         };
 
-        const allStats = calculateStats(allVisitsResult, allCouponsResult);
-        const todayStats = calculateStats(todayVisitsResult, allCouponsResult, { start: todayUtcStart, end: todayUtcEnd });
-        const yesterdayStats = calculateStats(yesterdayVisitsResult, allCouponsResult, { start: yesterdayUtcStart, end: yesterdayUtcEnd });
+        const allStats = calculateAllStats(allVisitsResult, allCouponsResult);
+        const todayStats = calculateDailyStats(todayVisitsResult, todayCouponsIssuedResult, allCouponsResult.data, { start: todayUtcStart, end: todayUtcEnd });
+        const yesterdayStats = calculateDailyStats(yesterdayVisitsResult, yesterdayCouponsIssuedResult, allCouponsResult.data, { start: yesterdayUtcStart, end: yesterdayUtcEnd });
+
+        // 디버깅 로그
+        console.log(`이벤트 ${eventId} 통계:`, {
+          event: event?.domain_code,
+          location: location?.id,
+          allCouponsCount: allCouponsResult.count,
+          allCouponsDataLength: allCouponsResult.data?.length,
+          todayCouponsCount: todayCouponsIssuedResult.count,
+          yesterdayCouponsCount: yesterdayCouponsIssuedResult.count,
+          allStats,
+          todayStats,
+          yesterdayStats
+        });
 
         return {
           id: eventId,
