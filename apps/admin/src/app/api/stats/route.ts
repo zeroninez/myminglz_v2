@@ -374,31 +374,36 @@ export async function GET(request: Request) {
           })
         );
 
-        // 시간대별 데이터 집계 (0시 ~ 23시, 24시간)
+        // 시간대별 데이터 집계 (0시 ~ 23시, 24시간) - 한국 시간 기준
         const hourlyData = Array.from({ length: 24 }, (_, i) => {
           const hour = i;
           const hourStart = hour;
           const hourEnd = hour === 23 ? 24 : hour + 1;
 
+          // 한국 시간대(KST, UTC+9)로 변환하는 함수
+          const getKSTHour = (dateString: string) => {
+            const date = new Date(dateString);
+            // UTC 시간에 9시간을 더해서 한국 시간으로 변환
+            const kstDate = new Date(date.getTime() + (9 * 60 * 60 * 1000));
+            return kstDate.getUTCHours();
+          };
+
           // 해당 시간대의 유입 수
           const inflow = visitList.filter((v) => {
-            const visitDate = new Date(v.visited_at);
-            const visitHour = visitDate.getHours();
+            const visitHour = getKSTHour(v.visited_at);
             return visitHour >= hourStart && visitHour < hourEnd;
           }).length;
 
           // 해당 시간대의 발급 수
           const issuance = couponList.filter((c) => {
-            const couponDate = new Date(c.created_at);
-            const couponHour = couponDate.getHours();
+            const couponHour = getKSTHour(c.created_at);
             return couponHour >= hourStart && couponHour < hourEnd;
           }).length;
 
           // 해당 시간대의 사용 수
           const usage = couponList.filter((c) => {
             if (!c.is_used || !c.used_at) return false;
-            const usedDate = new Date(c.used_at);
-            const usedHour = usedDate.getHours();
+            const usedHour = getKSTHour(c.used_at);
             return usedHour >= hourStart && usedHour < hourEnd;
           }).length;
 

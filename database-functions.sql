@@ -16,21 +16,21 @@ BEGIN
     COUNT(*) as total_visits,
     jsonb_agg(
       jsonb_build_object(
-        'hour', EXTRACT(HOUR FROM pv.visited_at) || '시',
+        'hour', EXTRACT(HOUR FROM pv.visited_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul') || '시',
         'inflow', hour_count.count
-      ) ORDER BY EXTRACT(HOUR FROM pv.visited_at)
+      ) ORDER BY EXTRACT(HOUR FROM pv.visited_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul')
     ) as hourly_data
   FROM page_visits pv
   LEFT JOIN (
     SELECT 
       event_id,
-      EXTRACT(HOUR FROM visited_at) as hour,
+      EXTRACT(HOUR FROM visited_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul') as hour,
       COUNT(*) as count
     FROM page_visits
     WHERE event_id = ANY(event_ids)
       AND (start_date IS NULL OR visited_at >= start_date)
       AND (end_date IS NULL OR visited_at <= end_date)
-    GROUP BY event_id, EXTRACT(HOUR FROM visited_at)
+    GROUP BY event_id, EXTRACT(HOUR FROM visited_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul')
   ) hour_count ON pv.event_id = hour_count.event_id
   WHERE pv.event_id = ANY(event_ids)
     AND (start_date IS NULL OR pv.visited_at >= start_date)
@@ -60,20 +60,20 @@ BEGIN
     COUNT(*) as total_issued,
     COUNT(*) FILTER (WHERE c.is_used = true) as total_used,
     
-    -- 시간대별 발급 수
+    -- 시간대별 발급 수 (한국 시간 기준)
     jsonb_agg(
       jsonb_build_object(
-        'hour', EXTRACT(HOUR FROM c.created_at) || '시',
+        'hour', EXTRACT(HOUR FROM c.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul') || '시',
         'issuance', issued_by_hour.count
-      ) ORDER BY EXTRACT(HOUR FROM c.created_at)
+      ) ORDER BY EXTRACT(HOUR FROM c.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul')
     ) as hourly_issued,
     
-    -- 시간대별 사용 수
+    -- 시간대별 사용 수 (한국 시간 기준)
     jsonb_agg(
       jsonb_build_object(
-        'hour', EXTRACT(HOUR FROM c.used_at) || '시',
+        'hour', EXTRACT(HOUR FROM c.used_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul') || '시',
         'usage', used_by_hour.count
-      ) ORDER BY EXTRACT(HOUR FROM c.used_at)
+      ) ORDER BY EXTRACT(HOUR FROM c.used_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul')
     ) FILTER (WHERE c.used_at IS NOT NULL) as hourly_used,
     
     -- 스토어별 검증 수
@@ -86,19 +86,19 @@ BEGIN
   LEFT JOIN (
     SELECT 
       location_id,
-      EXTRACT(HOUR FROM created_at) as hour,
+      EXTRACT(HOUR FROM created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul') as hour,
       COUNT(*) as count
     FROM coupons
     WHERE location_id = ANY(location_ids)
       AND (start_date IS NULL OR created_at >= start_date)
       AND (end_date IS NULL OR created_at <= end_date)
-    GROUP BY location_id, EXTRACT(HOUR FROM created_at)
+    GROUP BY location_id, EXTRACT(HOUR FROM created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul')
   ) issued_by_hour ON c.location_id = issued_by_hour.location_id
   
   LEFT JOIN (
     SELECT 
       location_id,
-      EXTRACT(HOUR FROM used_at) as hour,
+      EXTRACT(HOUR FROM used_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul') as hour,
       COUNT(*) as count
     FROM coupons
     WHERE location_id = ANY(location_ids)
@@ -106,7 +106,7 @@ BEGIN
       AND used_at IS NOT NULL
       AND (start_date IS NULL OR used_at >= start_date)
       AND (end_date IS NULL OR used_at <= end_date)
-    GROUP BY location_id, EXTRACT(HOUR FROM used_at)
+    GROUP BY location_id, EXTRACT(HOUR FROM used_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul')
   ) used_by_hour ON c.location_id = used_by_hour.location_id
   
   LEFT JOIN (
