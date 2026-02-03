@@ -13,6 +13,8 @@ interface SplitFormLayoutProps {
   scrollHeight?: string;
   className?: string;
   rightContentPadding?: boolean; // 우측 컨텐츠 패딩 여부 (기본값: true)
+  disableRightScroll?: boolean; // 우측 스크롤 비활성화 (기본값: false)
+  disableLeftScroll?: boolean; // 좌측 스크롤 비활성화 (기본값: false)
 }
 
 export default function SplitFormLayout({
@@ -22,13 +24,15 @@ export default function SplitFormLayout({
   scrollHeight,
   className = '',
   rightContentPadding = true,
+  disableRightScroll = false,
+  disableLeftScroll = false,
 }: SplitFormLayoutProps) {
   return (
     <div className={`grid md:grid-cols-2 items-stretch ${className}`} style={{ height: '100%', minHeight: 0 }}>
       {/* 좌측: 입력 폼 */}
       <div 
-        className="pr-6 pt-6 pb-20 overflow-y-auto custom-scrollbar"
-        style={{ maxHeight: '100%', minHeight: 0 }}
+        className={disableLeftScroll ? "px-6 pt-6 pb-6" : "px-6 pt-6 pb-20 overflow-y-auto custom-scrollbar"}
+        style={{ maxHeight: disableLeftScroll ? 'none' : '100%', minHeight: 0 }}
       >
         {/* 정보 박스 */}
         {infoBox && (
@@ -58,9 +62,13 @@ export default function SplitFormLayout({
 
       {/* 우측: 미리보기 */}
       <div 
-        className={rightContentPadding ? "pl-6 pt-6 pb-20 overflow-y-auto custom-scrollbar" : "overflow-y-auto custom-scrollbar"}
+        className={
+          disableRightScroll 
+            ? (rightContentPadding ? "pl-6 pt-6 pb-20" : "")
+            : (rightContentPadding ? "pl-6 pt-6 pb-20 overflow-y-auto custom-scrollbar" : "overflow-y-auto custom-scrollbar")
+        }
         style={{ 
-          maxHeight: scrollHeight || '100%', 
+          height: disableRightScroll ? 'auto' : (scrollHeight || '100%'), 
           minHeight: 0,
           width: '100%'
         }}

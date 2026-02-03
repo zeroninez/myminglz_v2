@@ -100,7 +100,12 @@ export default function QRModal({
                             const newSize = Number(e.target.value) as QRSize;
                             onSizeChange(index, newSize);
                           }}
-                          className="px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          disabled={sizeSelectMode[index] === 'save' && selectedFormats[index] === 'svg'}
+                          className={`px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                            sizeSelectMode[index] === 'save' && selectedFormats[index] === 'svg'
+                              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                              : ''
+                          }`}
                         >
                           {QR_SIZES.map((size) => (
                             <option key={size} value={size}>

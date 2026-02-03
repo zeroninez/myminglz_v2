@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import EventInfoSection, { type EventInfoSectionRef } from './components/EventInfoSection';
-import EventMissionSection from './components/EventMissionSection';
+import EventMissionSection, { type EventMissionSectionRef } from './components/EventMissionSection';
 import LandingPageSection, { type LandingPageSectionRef } from './components/LandingPageSection';
 import { convertPageBuilderToDB } from './utils/dataConverter';
 import ConfirmEventCreationModal from './components/ConfirmEventCreationModal';
@@ -46,6 +46,30 @@ export default function CreatePage() {
   const [activeStepLeft, setActiveStepLeft] = useState(0);
   const [activeStepWidth, setActiveStepWidth] = useState(0);
   const [isFormValid, setIsFormValid] = useState(false);
+
+  // 단계 변경 시 폼 유효성 상태 초기화
+  useEffect(() => {
+    if (currentStep === 0) {
+      // 기본정보 단계: 초기에는 false, 데이터 변경 시 검증
+      if (eventInfoSectionRef.current) {
+        const isValid = eventInfoSectionRef.current.isValid();
+        setIsFormValid(isValid);
+      } else {
+        setIsFormValid(false);
+      }
+    } else if (currentStep === 2) {
+      // 미션 설정 단계: 초기에는 false, 데이터 변경 시 검증
+      if (eventMissionSectionRef.current) {
+        const isValid = eventMissionSectionRef.current.isValid();
+        setIsFormValid(isValid);
+      } else {
+        setIsFormValid(false);
+      }
+    } else {
+      // 다른 단계들은 항상 유효
+      setIsFormValid(true);
+    }
+  }, [currentStep]);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   
@@ -53,6 +77,7 @@ export default function CreatePage() {
   const eventInfoDataRef = useRef<EventInfoData>({});
   const eventInfoSectionRef = useRef<EventInfoSectionRef>(null);
   const eventMissionDataRef = useRef<EventMissionData>({});
+  const eventMissionSectionRef = useRef<EventMissionSectionRef>(null);
   const landingPageDataRef = useRef<LandingPageData>({
     pageSelections: {},
     pageBackgroundColors: {},
@@ -77,6 +102,7 @@ export default function CreatePage() {
         }
       }
     }
+
 
     if (currentStep < steps.length - 1) {
       setCurrentStep((prev) => prev + 1);
@@ -427,9 +453,15 @@ export default function CreatePage() {
       )}
       {currentStep === 2 && (
         <EventMissionSection
+          ref={eventMissionSectionRef}
           initialData={Object.keys(eventMissionDataRef.current).length > 0 ? eventMissionDataRef.current : undefined}
           onDataChange={(data) => {
             eventMissionDataRef.current = { ...eventMissionDataRef.current, ...data };
+            // 데이터 변경 시 검증
+            if (eventMissionSectionRef.current) {
+              const isValid = eventMissionSectionRef.current.isValid();
+              setIsFormValid(isValid);
+            }
           }}
         />
       )}
@@ -455,7 +487,7 @@ export default function CreatePage() {
             <button
               onClick={handlePrevious}
               disabled={isSubmitting}
-              className="inline-flex h-10 items-center rounded-lg border border-gray-300 bg-white px-5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex h-10 items-center rounded border border-gray-300 bg-white px-5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               이전
             </button>
