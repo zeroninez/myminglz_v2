@@ -18,6 +18,10 @@ interface EventData {
   start_date: string | null;
   end_date: string | null;
   background_color: string;
+  mission_config?: {
+    type: string;
+    hashtags: string[];
+  } | null;
   event_info_config?: {
     coupon_usage?: 'immediate' | 'later';
     stores?: Array<{
@@ -189,71 +193,13 @@ export default function EventLandingPage() {
     try {
       setIsParticipating(true);
 
-      // event_info_config에서 설정 가져오기
-      const couponUsage = eventData.event_info_config?.coupon_usage || 'later';
-      const isHostSameAsStore = eventData.event_info_config?.is_host_same_as_store || false;
+      // 모든 이벤트는 무조건 미션 페이지를 거치도록 함
+      console.log('✅ 미션 페이지로 이동 (모든 이벤트 필수)');
+      console.log('🔗 이동할 URL:', `/${domainCode}/mission`);
       
-      // Stores 정보 가져오기 (DB의 stores 테이블에서)
-      const stores = eventData.stores || [];
-      
-      // 이벤트 주최 = 사용처인 경우, 도메인 코드를 store slug로 사용
-      // 일반적인 경우, 첫 번째 store의 slug 사용 (없으면 domain_code 사용)
-      const firstStore = stores[0];
-      const storeSlug = isHostSameAsStore 
-        ? domainCode  // 주최=사용처인 경우 도메인 코드를 store slug로 사용
-        : (firstStore?.slug || domainCode || 'default');
-      const locationSlug = domainCode; // location slug는 항상 domain_code
-      
-      console.log('🔍 Store 정보:', {
-        stores,
-        firstStore,
-        storeSlug,
-        locationSlug,
-        domainCode,
-        couponUsage,
-      });
-
-      // 즉시사용 여부와 관계없이 쿠폰 코드 생성
-      console.log('Generating coupon code...');
-      const result = await CouponService.generateCodeForLocation(locationSlug);
-      console.log('Generation result:', result);
-      
-      if (!result.success || !result.code) {
-        console.error('쿠폰 생성 실패:', result.error);
-        // location이 없을 때 더 명확한 메시지
-        const errorMessage = result.error?.includes('장소를 찾을 수 없습니다') 
-          ? `장소를 찾을 수 없습니다. 관리자에게 문의해주세요. (사용된 slug: ${locationSlug})`
-          : result.error || '알 수 없는 오류';
-        alert('쿠폰 생성 실패: ' + errorMessage);
-        setIsParticipating(false);
-        return;
-      }
-
-      // DB에 저장 (location slug 사용)
-      console.log('Saving coupon code:', result.code);
-      const saveResult = await CouponService.saveCodeForLocation(result.code, locationSlug);
-      console.log('Save result:', saveResult);
-      
-      if (!saveResult.success) {
-        console.error('쿠폰 저장 실패:', saveResult.error);
-        alert('쿠폰 저장 실패: ' + saveResult.error);
-        setIsParticipating(false);
-        return;
-      }
-      
-      const finalCode = result.code;
-
-      if (couponUsage === 'immediate') {
-        // 즉시사용 ON - 쿠폰 코드 생성 후 검증 페이지로 이동
-        // location slug (domain_code)로 검증 페이지 이동 (쿠폰 코드 포함)
-        console.log('Redirecting to validate page with code:', finalCode);
-        router.push(`/store/${locationSlug}/coupon/${finalCode}/validate`);
-      } else {
-        // 즉시사용 OFF - 쿠폰 생성 후 보관 페이지로 이동
-        console.log('Redirecting to success page with code:', finalCode);
-        // location slug (domain_code)로 성공 페이지 이동 (여러 사용처 중 어디서 사용할지는 QR 코드로 확인)
-        router.push(`/store/${locationSlug}/coupon/${finalCode}/success`);
-      }
+      // 강제로 페이지 이동 (캐시 방지)
+      window.location.href = `/${domainCode}/mission`;
+      return;
     } catch (error) {
       console.error('참여하기 에러:', error);
       alert('에러 발생: ' + (error instanceof Error ? error.message : '알 수 없는 에러'));
@@ -371,14 +317,19 @@ export default function EventLandingPage() {
                   }}
                 >
                   <button
-                    onClick={handleParticipate}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      console.log('🔴 버튼 클릭됨! 핸들러 실행 시작');
+                      handleParticipate();
+                    }}
                     disabled={isParticipating}
-                    className="px-8 py-4 bg-blue-500 text-white rounded-lg font-semibold text-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-lg"
+                    className="px-8 py-4 bg-red-500 text-white rounded-lg font-semibold text-lg hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-lg"
                     style={{ 
                       pointerEvents: 'auto',
                     }}
                   >
-                    {isParticipating ? '처리 중...' : '참여하기'}
+                    {isParticipating ? '처리 중...' : '🚀 미션 시작하기'}
                   </button>
                 </div>
               </>
