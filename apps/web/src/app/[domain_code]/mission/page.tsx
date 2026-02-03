@@ -47,12 +47,9 @@ export default function MissionPage() {
   // 포토캡쳐 관련 상태
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState(1); // 1: 사진촬영, 2: 해시태그 추가, 3: 공유
-  const [isCameraActive, setIsCameraActive] = useState(false);
   
-  // 카메라 관련 refs
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
+  // 파일 입력 ref
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!domainCode) return;
@@ -90,99 +87,27 @@ export default function MissionPage() {
     fetchEvent();
   }, [domainCode]);
 
-  // 카메라 시작
-  const startCamera = async () => {
-    try {
-      console.log('🎥 카메라 시작...');
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: 'user', // 전면 카메라
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-        audio: false,
-      });
+  // 파일 선택 (카메라 앱에서)
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-      streamRef.current = stream;
-      console.log('✅ 카메라 스트림 받음');
-
-      if (videoRef.current) {
-        const video = videoRef.current;
-        video.srcObject = stream;
-        
-        await new Promise<void>((resolve) => {
-          const onLoadedMetadata = () => {
-            console.log('📹 비디오 메타데이터 로드');
-            video.removeEventListener('loadedmetadata', onLoadedMetadata);
-            resolve();
-          };
-
-          video.addEventListener('loadedmetadata', onLoadedMetadata);
-          
-          video.play().catch((err) => {
-            console.error('비디오 재생 실패:', err);
-            resolve();
-          });
-        });
-
-        await new Promise((resolve) => setTimeout(resolve, 200));
-        setIsCameraActive(true);
-        console.log('✅ 카메라 활성화 완료');
-      }
-    } catch (error) {
-      console.error('❌ 카메라 접근 실패:', error);
-      alert('카메라 권한이 필요합니다.');
-    }
-  };
-
-  // 카메라 중지
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-
-    setIsCameraActive(false);
-  };
-
-  // 사진 촬영
-  const capturePhoto = () => {
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-
-    if (!video || !canvas || !isCameraActive) {
+    if (!file.type.startsWith('image/')) {
+      alert('이미지 파일만 선택할 수 있습니다.');
       return;
     }
 
-    // Canvas 크기를 비디오 크기에 맞춤
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    // 비디오 프레임을 Canvas에 그리기
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    // Canvas를 이미지 데이터 URL로 변환
-    const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
-    setCapturedImage(imageDataUrl);
-    setCurrentStep(2);
-    
-    // 카메라 중지
-    stopCamera();
-  };
-
-  // 컴포넌트 언마운트 시 카메라 중지
-  useEffect(() => {
-    return () => {
-      stopCamera();
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const result = e.target?.result as string;
+      setCapturedImage(result);
+      setCurrentStep(2);
     };
-  }, []);
+    reader.readAsDataURL(file);
+    
+    // 파일 입력 초기화
+    event.target.value = '';
+  };
 
   // 미션 완료 처리
   const handleMissionComplete = async () => {
@@ -278,10 +203,7 @@ export default function MissionPage() {
     );
   }
 
-  // 해시태그가 없으면 기본 해시태그 사용
-  const hashtags = eventData.mission_config?.hashtags && eventData.mission_config.hashtags.length > 0 
-    ? eventData.mission_config.hashtags 
-    : ['#이벤트', '#참여완료'];
+  const hashtags = eventData.mission_config?.hashtags || [];
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#DEE7EC' }}>
@@ -360,33 +282,16 @@ export default function MissionPage() {
       <div className="px-4 py-6">
         <div className="max-w-md mx-auto">
           {/* 사진 영역 */}
-          <div className="bg-gray-300 aspect-square rounded-lg mb-6 flex items-center justify-center relative overflow-hidden">
-            {capturedImage ? (
-              <img 
-                src={capturedImage} 
-                alt="촬영된 사진" 
-                className="w-full h-full object-cover rounded-lg"
-              />
-            ) : isCameraActive ? (
-              <>
-                {/* 카메라 비디오 */}
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full h-full object-cover rounded-lg"
-                />
-                
-                {/* 촬영 버튼 */}
-                <button
-                  onClick={capturePhoto}
-                  className="absolute bottom-4 left-1/2 transform -translate-x-1/2 w-16 h-16 bg-white rounded-full border-4 border-gray-300 flex items-center justify-center hover:bg-gray-100 transition-colors"
-                >
-                  <div className="w-12 h-12 bg-gray-300 rounded-full"></div>
-                </button>
-              </>
-            ) : (
+          <div 
+            className="bg-gray-300 aspect-square rounded-lg mb-6 flex items-center justify-center cursor-pointer relative overflow-hidden"
+            onClick={() => !capturedImage && fileInputRef.current?.click()}
+            style={{
+              backgroundImage: capturedImage ? `url(${capturedImage})` : "none",
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+            }}
+          >
+            {!capturedImage && (
               <div className="text-center text-gray-500">
                 <div className="w-16 h-16 mx-auto mb-2 bg-gray-400 rounded-full flex items-center justify-center">
                   <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -398,29 +303,25 @@ export default function MissionPage() {
               </div>
             )}
             
-            {/* 숨겨진 Canvas (사진 촬영용) */}
-            <canvas ref={canvasRef} className="hidden" />
+            {/* 숨겨진 파일 입력 (카메라 앱 열기) */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
           </div>
 
           {/* 버튼들 */}
           <div className="space-y-3">
-            {!capturedImage && !isCameraActive && (
-              <button
-                onClick={startCamera}
-                className="w-full bg-[#56A3FF] text-white py-3 rounded-lg font-medium"
-              >
-                사진 촬영하기
-              </button>
-            )}
-
-            {isCameraActive && (
-              <button
-                onClick={stopCamera}
-                className="w-full bg-red-500 text-white py-3 rounded-lg font-medium"
-              >
-                카메라 끄기
-              </button>
-            )}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full bg-[#56A3FF] text-white py-3 rounded-lg font-medium"
+            >
+              사진 촬영하기
+            </button>
 
             {capturedImage && (
               <>
@@ -428,6 +329,7 @@ export default function MissionPage() {
                   onClick={() => {
                     setCapturedImage(null);
                     setCurrentStep(1);
+                    if (fileInputRef.current) fileInputRef.current.value = '';
                   }}
                   className="w-full bg-gray-500 text-white py-3 rounded-lg font-medium"
                 >
