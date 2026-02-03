@@ -329,7 +329,7 @@ export default function EventLandingPage() {
                       pointerEvents: 'auto',
                     }}
                   >
-                    {isParticipating ? '처리 중...' : '🚀 미션 시작하기'}
+                    {isParticipating ? '처리 중...' : '미션 시작하기'}
                   </button>
                 </div>
               </>

@@ -314,38 +314,29 @@ export default function MissionPage() {
             />
           </div>
 
-          {/* 버튼들 */}
-          <div className="space-y-3">
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="w-full bg-[#56A3FF] text-white py-3 rounded-lg font-medium"
-            >
-              사진 촬영하기
-            </button>
+          {/* 버튼들 - 사진을 찍은 후에만 표시 */}
+          {capturedImage && (
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setCapturedImage(null);
+                  setCurrentStep(1);
+                  if (fileInputRef.current) fileInputRef.current.value = '';
+                }}
+                className="flex-1 bg-gray-500 text-white py-3 rounded-lg font-medium"
+              >
+                다시 찍기
+              </button>
 
-            {capturedImage && (
-              <>
-                <button
-                  onClick={() => {
-                    setCapturedImage(null);
-                    setCurrentStep(1);
-                    if (fileInputRef.current) fileInputRef.current.value = '';
-                  }}
-                  className="w-full bg-gray-500 text-white py-3 rounded-lg font-medium"
-                >
-                  다시 찍기
-                </button>
-
-                <button
-                  onClick={handleMissionComplete}
-                  disabled={isCompleting}
-                  className="w-full bg-[#4CAF50] text-white py-3 rounded-lg font-medium disabled:opacity-50"
-                >
-                  {isCompleting ? '처리 중...' : '공유하기'}
-                </button>
-              </>
-            )}
-          </div>
+              <button
+                onClick={handleMissionComplete}
+                disabled={isCompleting}
+                className="flex-1 bg-[#56A3FF] text-white py-3 rounded-lg font-medium disabled:opacity-50"
+              >
+                {isCompleting ? '처리 중...' : '공유하기'}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
