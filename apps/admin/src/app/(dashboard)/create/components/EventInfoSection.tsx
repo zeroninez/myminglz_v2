@@ -414,7 +414,6 @@ const EventInfoSection = forwardRef<EventInfoSectionRef, EventInfoSectionProps>(
                       setStartDate(start);
                       setEndDate(end);
                     }}
-                    showRefreshButton={true}
                   />
                 </div>
 

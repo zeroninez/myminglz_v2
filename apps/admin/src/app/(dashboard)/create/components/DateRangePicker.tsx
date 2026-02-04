@@ -18,11 +18,14 @@ interface DateRangePickerProps {
   minDate?: string;
   maxDate?: string;
   defaultMonth?: Date;
-  showRefreshButton?: boolean;
 }
 
-export default function DateRangePicker({ startDate, endDate, onDateChange, placeholder = "이벤트 시작일 ~ 이벤트 마감일을 설정해주세요.", singleDateMode = false, allowPastDates = false, autoOpen = false, hideInput = false, minDate, maxDate, defaultMonth, showRefreshButton = false }: DateRangePickerProps) {
+export default function DateRangePicker({ startDate, endDate, onDateChange, placeholder = "이벤트 시작일 ~ 이벤트 마감일을 설정해주세요.", singleDateMode = false, allowPastDates = false, autoOpen = false, hideInput = false, minDate, maxDate, defaultMonth }: DateRangePickerProps) {
   const [selectedRange, setSelectedRange] = useState<DateRange | undefined>({
+    from: startDate ? new Date(startDate) : undefined,
+    to: endDate ? new Date(endDate) : undefined,
+  });
+  const [tempRange, setTempRange] = useState<DateRange | undefined>({
     from: startDate ? new Date(startDate) : undefined,
     to: endDate ? new Date(endDate) : undefined,
   });
@@ -30,10 +33,12 @@ export default function DateRangePicker({ startDate, endDate, onDateChange, plac
   const datePickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setSelectedRange({
+    const newRange = {
       from: startDate ? new Date(startDate) : undefined,
       to: endDate ? new Date(endDate) : undefined,
-    });
+    };
+    setSelectedRange(newRange);
+    setTempRange(newRange);
   }, [startDate, endDate]);
 
   // autoOpen이 변경될 때 달력 상태 업데이트
@@ -41,10 +46,25 @@ export default function DateRangePicker({ startDate, endDate, onDateChange, plac
     setIsDatePickerOpen(autoOpen);
   }, [autoOpen]);
 
-  // 날짜 초기화 함수
-  const handleRefresh = () => {
-    setSelectedRange(undefined);
-    onDateChange('', '');
+
+  // 확인 버튼 클릭 시
+  const handleConfirm = () => {
+    if (tempRange?.from && tempRange?.to) {
+      const start = tempRange.from.getTime() <= tempRange.to.getTime() ? tempRange.from : tempRange.to;
+      const end = tempRange.from.getTime() <= tempRange.to.getTime() ? tempRange.to : tempRange.from;
+      setSelectedRange({ from: start, to: end });
+      onDateChange(format(start, 'yyyy-MM-dd'), format(end, 'yyyy-MM-dd'));
+    } else if (tempRange?.from) {
+      setSelectedRange({ from: tempRange.from, to: tempRange.from });
+      onDateChange(format(tempRange.from, 'yyyy-MM-dd'), format(tempRange.from, 'yyyy-MM-dd'));
+    }
+    setIsDatePickerOpen(false);
+  };
+
+  // 취소 버튼 클릭 시
+  const handleCancel = () => {
+    setTempRange(selectedRange);
+    setIsDatePickerOpen(false);
   };
 
   useEffect(() => {
@@ -66,8 +86,7 @@ export default function DateRangePicker({ startDate, endDate, onDateChange, plac
   return (
     <div className="relative">
       {!hideInput && (
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1">
+        <div className="relative">
             <div
               className="flex items-center rounded border border-gray-300 bg-white h-12 px-4 pr-10 cursor-pointer"
               onClick={() => setIsDatePickerOpen(!isDatePickerOpen)}
@@ -99,30 +118,6 @@ export default function DateRangePicker({ startDate, endDate, onDateChange, plac
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
             </div>
-          </div>
-          
-          {showRefreshButton && (
-            <button
-              type="button"
-              onClick={handleRefresh}
-              className="h-12 px-3 border border-gray-300 rounded bg-white hover:bg-gray-50 transition-colors flex items-center justify-center"
-              title="날짜 초기화"
-            >
-              <svg
-                className="w-5 h-5 text-gray-500"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                />
-              </svg>
-            </button>
-          )}
         </div>
       )}
       {isDatePickerOpen && (
@@ -134,15 +129,13 @@ export default function DateRangePicker({ startDate, endDate, onDateChange, plac
                 <DayPicker
                   mode="single"
                   numberOfMonths={1}
-                  selected={selectedRange?.from}
+                  selected={tempRange?.from}
                   defaultMonth={defaultMonth}
                   onSelect={(date) => {
                     if (date) {
-                      setSelectedRange({ from: date, to: undefined });
-                      onDateChange(format(date, 'yyyy-MM-dd'), format(date, 'yyyy-MM-dd'));
-                      setIsDatePickerOpen(false);
+                      setTempRange({ from: date, to: date });
                     } else {
-                      setSelectedRange(undefined);
+                      setTempRange(undefined);
                     }
                   }}
                   locale={ko}
@@ -176,32 +169,32 @@ export default function DateRangePicker({ startDate, endDate, onDateChange, plac
                 <DayPicker
                   mode="range"
                   numberOfMonths={2}
-                  selected={selectedRange}
+                  selected={tempRange}
                   defaultMonth={defaultMonth}
                   onSelect={(range) => {
                     if (range) {
-                      // 첫 번째 클릭: from만 있고 to가 없거나, from과 to가 같으면 from만 설정
-                      if (!range.to || (range.from && range.to && range.from.getTime() === range.to.getTime())) {
-                        // 같은 날짜를 다시 클릭한 경우 (이미 from이 설정되어 있고 같은 날짜를 클릭)
-                        if (selectedRange?.from && range.from && selectedRange.from.getTime() === range.from.getTime()) {
-                          // 같은 날짜로 범위 설정하고 닫기
-                          setSelectedRange({ from: range.from, to: range.from });
-                          onDateChange(format(range.from, 'yyyy-MM-dd'), format(range.from, 'yyyy-MM-dd'));
-                          setIsDatePickerOpen(false);
+                      // 이미 완성된 범위가 있는 상태에서 새로운 날짜 클릭 시 새로 시작
+                      if (tempRange?.from && tempRange?.to && range.from && 
+                          (!range.to || range.from.getTime() === range.to.getTime())) {
+                        // 새로운 시작점으로 설정
+                        setTempRange({ from: range.from, to: undefined });
+                      } else if (!range.to || (range.from && range.to && range.from.getTime() === range.to.getTime())) {
+                        // 첫 번째 클릭 또는 같은 날짜 클릭
+                        if (tempRange?.from && range.from && tempRange.from.getTime() === range.from.getTime()) {
+                          // 같은 날짜를 다시 클릭한 경우 - 단일 날짜로 설정
+                          setTempRange({ from: range.from, to: range.from });
                         } else {
                           // 첫 번째 클릭
-                          setSelectedRange({ from: range.from, to: undefined });
+                          setTempRange({ from: range.from, to: undefined });
                         }
                       } else if (range.from && range.to) {
-                        // 두 번째 클릭: from과 to가 모두 설정되면 startDate, endDate 업데이트하고 닫기
+                        // 두 번째 클릭: 범위 완성
                         const start = range.from.getTime() <= range.to.getTime() ? range.from : range.to;
                         const end = range.from.getTime() <= range.to.getTime() ? range.to : range.from;
-                        setSelectedRange({ from: start, to: end });
-                        onDateChange(format(start, 'yyyy-MM-dd'), format(end, 'yyyy-MM-dd'));
-                        setIsDatePickerOpen(false);
+                        setTempRange({ from: start, to: end });
                       }
                     } else {
-                      setSelectedRange(undefined);
+                      setTempRange(undefined);
                     }
                   }}
                   locale={ko}
@@ -232,6 +225,25 @@ export default function DateRangePicker({ startDate, endDate, onDateChange, plac
                   }}
                 />
               )}
+              
+              {/* 확인/취소 버튼 */}
+              <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={handleCancel}
+                  className="px-4 py-2 text-sm text-gray-600 bg-gray-100 rounded hover:bg-gray-200 transition-colors"
+                >
+                  취소
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirm}
+                  disabled={!tempRange?.from}
+                  className="px-4 py-2 text-sm text-white bg-[#414B55] rounded hover:bg-[#32373D] disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                >
+                  확인
+                </button>
+              </div>
             </div>
           </div>
         </>
