@@ -55,6 +55,9 @@ const EventInfoSection = forwardRef<EventInfoSectionRef, EventInfoSectionProps>(
   const [domainCodeChecking, setDomainCodeChecking] = useState(false);
   const [domainCodeAvailable, setDomainCodeAvailable] = useState<boolean | null>(null);
   const [domainCodeMessage, setDomainCodeMessage] = useState<string | null>(null);
+  
+  // 한글 입력 에러 상태
+  const [domainInputError, setDomainInputError] = useState<string | null>(null);
 
   // 오늘 날짜를 YYYY-MM-DD 형식으로 반환
   const getTodayDate = () => {
@@ -159,7 +162,28 @@ const EventInfoSection = forwardRef<EventInfoSectionRef, EventInfoSectionProps>(
         setDomainCodeAvailable(null);
         setDomainCodeMessage(null);
 
-        const response = await fetch(`/api/events/check-domain-code?code=${encodeURIComponent(trimmedCode)}`);
+        let response = await fetch(`/api/events/check-domain-code?code=${encodeURIComponent(trimmedCode)}`);
+        
+        // 401 에러 시 세션 갱신 후 재시도
+        if (response.status === 401) {
+          try {
+            const sessionResponse = await fetch('/api/auth/session', {
+              method: 'GET',
+              credentials: 'include',
+            });
+            
+            if (sessionResponse.ok) {
+              const sessionResult = await sessionResponse.json();
+              if (sessionResult.success) {
+                // 세션 갱신 성공, 재시도
+                response = await fetch(`/api/events/check-domain-code?code=${encodeURIComponent(trimmedCode)}`);
+              }
+            }
+          } catch (sessionError) {
+            console.error('세션 갱신 실패:', sessionError);
+          }
+        }
+        
         const result = await response.json();
 
         if (result.success) {
@@ -314,7 +338,7 @@ const EventInfoSection = forwardRef<EventInfoSectionRef, EventInfoSectionProps>(
           is_host_same_as_store: isHostSameAsStore,
           coupon_usage: couponUsage,
           participant_location: participantLocation || undefined,
-          stores: isHostSameAsStore ? [] : stores.map((s) => ({
+          stores: stores.map((s) => ({
             id: s.id,
             name: s.name,
             location: s.location || '',
@@ -423,9 +447,24 @@ const EventInfoSection = forwardRef<EventInfoSectionRef, EventInfoSectionProps>(
                         type="text"
                         value={domainCode}
                         onChange={(e) => {
-                          // 영어, 숫자, 하이픈만 허용
-                          const value = e.target.value.replace(/[^a-zA-Z0-9-]/g, '');
+                          const originalValue = e.target.value;
+                          // 한글 입력 감지
+                          const hasKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(originalValue);
+                          const hasInvalidChars = /[^a-zA-Z0-9-]/.test(originalValue);
+                          
+                          // 에러 메시지 설정
+                          if (hasKorean) {
+                            setDomainInputError('한글은 입력할 수 없습니다. 영문, 숫자, 하이픈(-)만 사용해주세요.');
+                          } else if (hasInvalidChars) {
+                            setDomainInputError('특수문자는 하이픈(-)만 사용 가능합니다.');
+                          } else {
+                            setDomainInputError(null);
+                          }
+                          
+                          // 영어, 숫자, 하이픈만 허용 (실시간 필터링)
+                          const value = originalValue.replace(/[^a-zA-Z0-9-]/g, '');
                           setDomainCode(value);
+                          
                           // 입력 시 중복 검사 상태 초기화
                           // 수정 모드가 아니거나 기존 도메인 코드가 없을 때만 중복 검사
                           if (!isEditMode || !initialData?.domain_code) {
@@ -441,6 +480,17 @@ const EventInfoSection = forwardRef<EventInfoSectionRef, EventInfoSectionProps>(
                       />
                     </div>
                   </div>
+                  
+                  {/* 도메인 입력 에러 메시지 */}
+                  {domainInputError && (
+                    <p className="text-red-500 text-sm mt-1 flex items-center gap-1">
+                      <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                      {domainInputError}
+                    </p>
+                  )}
+                  
                   {isEditMode && initialData?.domain_code && (
                     <p className="mt-1 text-xs text-amber-600">
                       * 도메인 주소는 한번 설정 후 변경할 수 없습니다. 기존 QR 코드와 링크가 작동하지 않게 됩니다.
@@ -553,6 +603,8 @@ const EventInfoSection = forwardRef<EventInfoSectionRef, EventInfoSectionProps>(
               }}
               couponUsage={couponUsage}
               setCouponUsage={setCouponUsage}
+              eventName={eventName}
+              participantLocation={participantLocation?.placeName || participantLocation?.addressName || participantLocation?.roadAddressName}
             />
           )}
         </div>

@@ -287,18 +287,27 @@ export default function CreatePage() {
     [currentStep, steps.length]
   );
 
-  // 필수 정보 검증 (스텝 0, 1일 때만)
+  // 필수 정보 검증 (스텝별로 다른 검증 로직)
   useEffect(() => {
     const checkValidation = () => {
       if (currentStep === 0 || currentStep === 1) {
+        // 기본정보와 사용처 등록 검증
         if (eventInfoSectionRef.current) {
           const isValid = eventInfoSectionRef.current.isValid();
           setIsFormValid(isValid);
         } else {
           setIsFormValid(false);
         }
+      } else if (currentStep === 2) {
+        // 미션 설정 검증
+        if (eventMissionSectionRef.current) {
+          const isValid = eventMissionSectionRef.current.isValid();
+          setIsFormValid(isValid);
+        } else {
+          setIsFormValid(false);
+        }
       } else {
-        // 다른 스텝에서는 항상 활성화
+        // 랜딩 페이지 등 다른 스텝에서는 항상 활성화
         setIsFormValid(true);
       }
     };
@@ -308,7 +317,7 @@ export default function CreatePage() {
     // 주기적으로 검증 (데이터 변경 감지)
     const interval = setInterval(checkValidation, 500);
     return () => clearInterval(interval);
-  }, [currentStep, eventInfoDataRef.current]);
+  }, [currentStep, eventInfoDataRef.current, eventMissionDataRef.current]);
 
   // 활성 스텝 위치 계산 - requestAnimationFrame으로 최적화
   useEffect(() => {

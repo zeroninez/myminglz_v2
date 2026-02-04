@@ -27,8 +27,8 @@ export default function AdminLoginPage() {
       const data = await response.json();
 
       if (data.success) {
-        // 로그인 성공 - 대시보드로 이동
-        router.push('/dashboard');
+        // 로그인 성공 - 이벤트 홈으로 이동
+        router.push('/event-home');
       } else {
         setError(data.error || '로그인에 실패했습니다.');
       }

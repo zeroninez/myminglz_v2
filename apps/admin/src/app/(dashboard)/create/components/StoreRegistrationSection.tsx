@@ -48,6 +48,8 @@ interface StoreRegistrationSectionProps {
   setIsHostSameAsStore: (value: boolean) => void;
   couponUsage: 'immediate' | 'later';
   setCouponUsage: (value: 'immediate' | 'later') => void;
+  eventName?: string;
+  participantLocation?: string;
 }
 
 export interface StoreRegistrationSectionRef {
@@ -64,9 +66,26 @@ const StoreRegistrationSection = forwardRef<StoreRegistrationSectionRef, StoreRe
   setIsHostSameAsStore,
   couponUsage,
   setCouponUsage,
+  eventName,
+  participantLocation,
 }, ref) => {
   const [storeQrLoading, setStoreQrLoading] = useState<Record<string, boolean>>({});
   const [cropModal, setCropModal] = useState<{ storeId: string; imageSrc: string } | null>(null);
+
+  // 이벤트명이나 참여장소가 변경될 때 isHostSameAsStore가 true면 사용처 정보 업데이트
+  useEffect(() => {
+    if (isHostSameAsStore && stores.length > 0) {
+      setStores(prevStores => 
+        prevStores.map((store, index) => 
+          index === 0 ? {
+            ...store,
+            name: eventName || store.name,
+            location: participantLocation || store.location,
+          } : store
+        )
+      );
+    }
+  }, [eventName, participantLocation, isHostSameAsStore, setStores]);
 
   // 사용처별 QR 코드 생성
   useEffect(() => {
@@ -285,9 +304,19 @@ const StoreRegistrationSection = forwardRef<StoreRegistrationSectionRef, StoreRe
                     checked={isHostSameAsStore}
                     onChange={(checked) => {
                       setIsHostSameAsStore(checked);
-                      // 토글을 true로 변경할 때만 stores 비우기 (false로 변경 시 복원은 EventInfoSection에서 처리)
+                      // 토글을 true로 변경할 때 기본 사용처 1개 생성 (기본정보에서 불러오기)
                       if (checked) {
-                        setStores([]);
+                        const defaultStore: Store = {
+                          id: Date.now().toString(),
+                          name: eventName || '',
+                          location: participantLocation || '',
+                          benefit: '',
+                          usagePeriod: '',
+                          useEventPeriod: true,
+                          qrCodeUrl: null,
+                          imageUrl: null,
+                        };
+                        setStores([defaultStore]);
                       }
                     }}
                     label="이벤트 참여 장소와 동일"
@@ -338,12 +367,14 @@ const StoreRegistrationSection = forwardRef<StoreRegistrationSectionRef, StoreRe
                     <div className="bg-gray-100 px-4 py-3 rounded-t">
                       <div className="flex items-center justify-between">
                         <h6 className="text-sm font-semibold text-gray-800">사용처 {index + 1}</h6>
-                        <button
-                          onClick={() => removeStore(store.id)}
-                          className="text-sm text-blue-600 hover:text-blue-700 transition-colors"
-                        >
-                          삭제하기
-                        </button>
+                        {!isHostSameAsStore && (
+                          <button
+                            onClick={() => removeStore(store.id)}
+                            className="text-sm text-blue-600 hover:text-blue-700 transition-colors"
+                          >
+                            삭제하기
+                          </button>
+                        )}
                       </div>
                     </div>
                     
@@ -479,18 +510,19 @@ const StoreRegistrationSection = forwardRef<StoreRegistrationSectionRef, StoreRe
               </div>
 
               {/* 추가하기 버튼 */}
-              <div className="mt-4 flex justify-end">
-                <button
-                  onClick={addStore}
-                  disabled={isHostSameAsStore}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-[#414B55] text-white text-sm font-medium rounded hover:bg-[#32373D] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  사용처 추가
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                </button>
-              </div>
+              {!isHostSameAsStore && (
+                <div className="mt-4 flex justify-end">
+                  <button
+                    onClick={addStore}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-[#414B55] text-white text-sm font-medium rounded hover:bg-[#32373D] transition-colors"
+                  >
+                    사용처 추가
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                  </button>
+                </div>
+              )}
             </div>
           </>
         }
