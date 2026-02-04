@@ -18,9 +18,10 @@ interface DateRangePickerProps {
   minDate?: string;
   maxDate?: string;
   defaultMonth?: Date;
+  onClose?: () => void; // 달력 닫기 콜백
 }
 
-export default function DateRangePicker({ startDate, endDate, onDateChange, placeholder = "이벤트 시작일 ~ 이벤트 마감일을 설정해주세요.", singleDateMode = false, allowPastDates = false, autoOpen = false, hideInput = false, minDate, maxDate, defaultMonth }: DateRangePickerProps) {
+export default function DateRangePicker({ startDate, endDate, onDateChange, placeholder = "이벤트 시작일 ~ 이벤트 마감일을 설정해주세요.", singleDateMode = false, allowPastDates = false, autoOpen = false, hideInput = false, minDate, maxDate, defaultMonth, onClose }: DateRangePickerProps) {
   const [selectedRange, setSelectedRange] = useState<DateRange | undefined>({
     from: startDate ? new Date(startDate) : undefined,
     to: endDate ? new Date(endDate) : undefined,
@@ -59,12 +60,22 @@ export default function DateRangePicker({ startDate, endDate, onDateChange, plac
       onDateChange(format(tempRange.from, 'yyyy-MM-dd'), format(tempRange.from, 'yyyy-MM-dd'));
     }
     setIsDatePickerOpen(false);
+    onClose?.(); // 외부 콜백 호출
   };
 
   // 취소 버튼 클릭 시
   const handleCancel = () => {
     setTempRange(selectedRange);
     setIsDatePickerOpen(false);
+    onClose?.(); // 외부 콜백 호출
+  };
+
+  // 새로고침 버튼 클릭 시
+  const handleRefresh = () => {
+    setSelectedRange(undefined);
+    setTempRange(undefined);
+    onDateChange('', '');
+    // 달력은 열린 상태로 유지
   };
 
   useEffect(() => {
@@ -226,23 +237,47 @@ export default function DateRangePicker({ startDate, endDate, onDateChange, plac
                 />
               )}
               
-              {/* 확인/취소 버튼 */}
-              <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-200">
+              {/* 확인/취소/새로고침 버튼 */}
+              <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-200">
                 <button
                   type="button"
-                  onClick={handleCancel}
-                  className="px-4 py-2 text-sm text-gray-600 bg-gray-100 rounded hover:bg-gray-200 transition-colors"
+                  onClick={handleRefresh}
+                  className="px-3 py-2 text-sm text-gray-500 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors flex items-center gap-1"
+                  title="날짜 초기화"
                 >
-                  취소
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                    />
+                  </svg>
+                  초기화
                 </button>
-                <button
-                  type="button"
-                  onClick={handleConfirm}
-                  disabled={!tempRange?.from}
-                  className="px-4 py-2 text-sm text-white bg-[#414B55] rounded hover:bg-[#32373D] disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-                >
-                  확인
-                </button>
+                
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCancel}
+                    className="px-4 py-2 text-sm text-gray-600 bg-gray-100 rounded hover:bg-gray-200 transition-colors"
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConfirm}
+                    disabled={!tempRange?.from}
+                    className="px-4 py-2 text-sm text-white bg-[#414B55] rounded hover:bg-[#32373D] disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                  >
+                    확인
+                  </button>
+                </div>
               </div>
             </div>
           </div>

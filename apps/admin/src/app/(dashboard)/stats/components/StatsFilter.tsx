@@ -206,15 +206,19 @@ export default function StatsFilter({
                   </button>
                   
                   {showDatePicker && (
-                    <div className="absolute top-full left-0 mt-2 z-50">
+                    <div 
+                      className="absolute top-full left-0 mt-2 z-50"
+                      onClick={(e) => e.stopPropagation()} // 외부 클릭 전파 방지
+                    >
                       <DateRangePicker
                         startDate={customStartDate}
                         endDate={customEndDate}
                         onDateChange={(startDate, endDate) => {
                           onCustomDateChange(startDate, endDate);
                           onPeriodChange('all'); // 커스텀 기간으로 설정
-                          onShowDatePickerChange(false);
+                          // 달력을 자동으로 닫지 않음 - 사용자가 확인/취소 버튼으로 제어
                         }}
+                        onClose={() => onShowDatePickerChange(false)} // 확인/취소 시 달력 닫기
                         placeholder="기간을 선택해주세요"
                         allowPastDates={true}
                         autoOpen={true}
@@ -235,19 +239,6 @@ export default function StatsFilter({
                   )}
                 </div>
 
-                {/* 새로고침 버튼 */}
-                <button
-                  onClick={onRefresh}
-                  className="px-3 py-2 rounded text-sm font-medium transition-colors flex items-center justify-center bg-white hover:bg-gray-50 border border-gray-300"
-                  style={{ color: '#8E8E8E' }}
-                  title="새로고침"
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M1 4V10H7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M23 20V14H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10M23 14L18.36 18.36A9 9 0 0 1 3.51 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </button>
               </div>
             </div>
           </div>

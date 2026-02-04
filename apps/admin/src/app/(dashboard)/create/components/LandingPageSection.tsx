@@ -833,10 +833,10 @@ const LandingPageSection = forwardRef<LandingPageSectionRef, LandingPageSectionP
                               )}
                             </div>
                             <span 
-                              className="rounded-md px-3 py-1 text-[11px] font-medium text-white"
-                              style={{ backgroundColor: '#4D82F3' }}
+                              className="rounded-md px-2 py-0.5 text-[10px] font-normal text-white whitespace-nowrap"
+                              style={{ backgroundColor: isActive ? '#4D82F3' : '#888888' }}
                             >
-                              {pageNumber} / {pages.length}
+                              Page {pageNumber}/{pages.length}
                             </span>
                           </button>
                           {pages.length > 1 && page.id !== 1 && (
