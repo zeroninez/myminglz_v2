@@ -18,9 +18,10 @@ interface DateRangePickerProps {
   minDate?: string;
   maxDate?: string;
   defaultMonth?: Date;
+  showRefreshButton?: boolean;
 }
 
-export default function DateRangePicker({ startDate, endDate, onDateChange, placeholder = "이벤트 시작일 ~ 이벤트 마감일을 설정해주세요.", singleDateMode = false, allowPastDates = false, autoOpen = false, hideInput = false, minDate, maxDate, defaultMonth }: DateRangePickerProps) {
+export default function DateRangePicker({ startDate, endDate, onDateChange, placeholder = "이벤트 시작일 ~ 이벤트 마감일을 설정해주세요.", singleDateMode = false, allowPastDates = false, autoOpen = false, hideInput = false, minDate, maxDate, defaultMonth, showRefreshButton = false }: DateRangePickerProps) {
   const [selectedRange, setSelectedRange] = useState<DateRange | undefined>({
     from: startDate ? new Date(startDate) : undefined,
     to: endDate ? new Date(endDate) : undefined,
@@ -39,6 +40,12 @@ export default function DateRangePicker({ startDate, endDate, onDateChange, plac
   useEffect(() => {
     setIsDatePickerOpen(autoOpen);
   }, [autoOpen]);
+
+  // 날짜 초기화 함수
+  const handleRefresh = () => {
+    setSelectedRange(undefined);
+    onDateChange('', '');
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -59,39 +66,64 @@ export default function DateRangePicker({ startDate, endDate, onDateChange, plac
   return (
     <div className="relative">
       {!hideInput && (
-        <>
-          <div
-            className="flex items-center rounded border border-gray-300 bg-white h-12 px-4 pr-10 cursor-pointer"
-            onClick={() => setIsDatePickerOpen(!isDatePickerOpen)}
-          >
-            {singleDateMode ? (
-              selectedRange?.from ? (
-                <span className="text-gray-900 text-sm">
-                  {format(selectedRange.from, 'yyyy-MM-dd')}
-                </span>
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <div
+              className="flex items-center rounded border border-gray-300 bg-white h-12 px-4 pr-10 cursor-pointer"
+              onClick={() => setIsDatePickerOpen(!isDatePickerOpen)}
+            >
+              {singleDateMode ? (
+                selectedRange?.from ? (
+                  <span className="text-gray-900 text-sm">
+                    {format(selectedRange.from, 'yyyy-MM-dd')}
+                  </span>
+                ) : (
+                  <span className="text-sm text-gray-400">{placeholder}</span>
+                )
               ) : (
-                <span className="text-sm text-gray-400">{placeholder}</span>
-              )
-            ) : (
-              selectedRange?.from && selectedRange?.to ? (
-                <span className="text-gray-900 text-sm">
-                  {format(selectedRange.from, 'yyyy-MM-dd')} ~ {format(selectedRange.to, 'yyyy-MM-dd')}
-                </span>
-              ) : selectedRange?.from ? (
-                <span className="text-gray-900 text-sm">
-                  {format(selectedRange.from, 'yyyy-MM-dd')} ~ 마감일 선택 중...
-                </span>
-              ) : (
-                <span className="text-sm text-gray-400">{placeholder}</span>
-              )
-            )}
+                selectedRange?.from && selectedRange?.to ? (
+                  <span className="text-gray-900 text-sm">
+                    {format(selectedRange.from, 'yyyy-MM-dd')} ~ {format(selectedRange.to, 'yyyy-MM-dd')}
+                  </span>
+                ) : selectedRange?.from ? (
+                  <span className="text-gray-900 text-sm">
+                    {format(selectedRange.from, 'yyyy-MM-dd')} ~ 마감일 선택 중...
+                  </span>
+                ) : (
+                  <span className="text-sm text-gray-400">{placeholder}</span>
+                )
+              )}
+            </div>
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
           </div>
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-          </div>
-        </>
+          
+          {showRefreshButton && (
+            <button
+              type="button"
+              onClick={handleRefresh}
+              className="h-12 px-3 border border-gray-300 rounded bg-white hover:bg-gray-50 transition-colors flex items-center justify-center"
+              title="날짜 초기화"
+            >
+              <svg
+                className="w-5 h-5 text-gray-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
+            </button>
+          )}
+        </div>
       )}
       {isDatePickerOpen && (
         <>

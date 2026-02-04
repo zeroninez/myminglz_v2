@@ -642,7 +642,7 @@ const LandingPageSection = forwardRef<LandingPageSectionRef, LandingPageSectionP
           stepNumber: 4,
           title: (
             <>
-              이벤트 기본 정보 작성 단계입니다. <span className="text-[#32373D] font-normal"><span className="text-[#4D82F3] font-bold">*표시</span>는 필수로 작성해야할 정보입니다.</span>
+              이벤트 랜딩페이지 정보 작성 단계입니다. <span className="text-[#32373D] font-normal"><span className="text-[#4D82F3] font-bold">*표시</span>는 필수로 작성해야할 정보입니다.</span>
             </>
           ),
           description: [
