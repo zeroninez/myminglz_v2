@@ -265,6 +265,21 @@ const LandingPageSection = forwardRef<LandingPageSectionRef, LandingPageSectionP
     handleDesignChange(fieldId, previewUrl);
   };
 
+  // 이미지 삭제 핸들러
+  const handleImageDelete = (fieldId: string) => {
+    const fileKey = `${selectedPage}-${fieldId}`;
+    
+    // 대기 중인 파일에서 제거
+    setPendingImageFiles((prev) => {
+      const updated = { ...prev };
+      delete updated[fileKey];
+      return updated;
+    });
+    
+    // 디자인 값에서 이미지 URL 제거
+    handleDesignChange(fieldId, '');
+  };
+
   // 완료 시점에 모든 대기 중인 이미지를 Storage에 업로드
   const uploadPendingImages = async (): Promise<{ success: boolean; updatedData?: any }> => {
     const uploadPromises: Promise<void>[] = [];
@@ -585,7 +600,7 @@ const LandingPageSection = forwardRef<LandingPageSectionRef, LandingPageSectionP
                 </div>
                 {/* 이미지 미리보기 */}
                 {value && (
-                  <div className="mt-3">
+                  <div className="mt-3 relative">
                     <img
                       src={value}
                       alt="미리보기"
@@ -594,6 +609,16 @@ const LandingPageSection = forwardRef<LandingPageSectionRef, LandingPageSectionP
                         e.currentTarget.style.display = 'none';
                       }}
                     />
+                    <button
+                      type="button"
+                      onClick={() => handleImageDelete(field.id)}
+                      className="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors"
+                      title="이미지 삭제"
+                    >
+                      <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
                   </div>
                 )}
               </div>

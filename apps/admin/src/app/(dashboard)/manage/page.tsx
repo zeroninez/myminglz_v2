@@ -56,6 +56,15 @@ export default function ManagePage() {
   const loading = eventsLoading;
   const error = eventsError;
 
+  // URL 파라미터에서 초기 필터 설정
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const filterParam = urlParams.get('filter');
+    if (filterParam && ['all', 'ongoing', 'waiting', 'ended'].includes(filterParam)) {
+      setActiveTab(filterParam as EventStatus);
+    }
+  }, []);
+
   // Context에서 이벤트 데이터 가져오기 - 불필요한 업데이트 방지
   useEffect(() => {
     if (cachedEvents && cachedEvents.length > 0) {

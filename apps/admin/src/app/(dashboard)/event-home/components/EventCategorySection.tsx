@@ -53,23 +53,23 @@ export default function EventCategorySection({
         <EventCategoryItem 
           label="총 제작된 이벤트" 
           count={totalEvents} 
-          onClick={() => router.push('/manage')}
+          onClick={() => router.push('/manage?filter=all')}
         />
         <EventCategoryItem 
           label="진행중 이벤트" 
           count={ongoingEvents}
-          onClick={() => router.push('/manage')}
+          onClick={() => router.push('/manage?filter=ongoing')}
         />
         <EventCategoryItem 
           label="임시저장 이벤트" 
           count={savedEvents}
-          onClick={() => router.push('/manage')}
+          onClick={() => router.push('/manage?filter=waiting')}
         />
         <EventCategoryItem 
           label="종료된 이벤트" 
           count={endedEvents} 
           isLast
-          onClick={() => router.push('/manage')}
+          onClick={() => router.push('/manage?filter=ended')}
         />
       </div>
     </div>
