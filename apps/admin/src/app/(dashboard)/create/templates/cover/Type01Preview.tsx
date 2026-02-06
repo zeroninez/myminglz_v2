@@ -33,6 +33,7 @@ export default function CoverType01Preview({ data }: CoverType01PreviewProps) {
     <PhoneFrame 
       innerBackgroundColor={backgroundColor}
       innerBackgroundImage={isImageVisible && imageUrl ? imageUrl : undefined}
+      statusBarPadding={true}
     >
       <div className="relative flex h-full flex-col items-center justify-center">
         {/* 텍스트 컨텐츠 - 이미지 위에 표시 */}

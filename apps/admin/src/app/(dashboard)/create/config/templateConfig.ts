@@ -1,9 +1,11 @@
 import BlankTemplatePreview from '../templates/common/BlankTemplatePreview';
 import CoverType01Preview from '../templates/cover/Type01Preview';
 import CoverType02Preview from '../templates/cover/Type02Preview';
+import Content1Type01Preview from '../templates/content/Content1Type01Preview';
+import Content1Type02Preview from '../templates/content/Content1Type02Preview';
 
 // 타입 정의
-export type TemplateCategory = '표지' | '본문 1' | '본문 2' | '본문 3' | '갤러리' | '기타';
+export type TemplateCategory = '표지' | '본문 1' | '본문 2' | '본문 3' | '본문 4' | '기타';
 export type TemplateVariant = '유형1' | '유형2';
 
 export interface TemplateField {
@@ -11,7 +13,7 @@ export interface TemplateField {
   label: string;
   description?: string;
   placeholder?: string;
-  type?: 'text' | 'textarea' | 'image';
+  type?: 'text' | 'textarea' | 'image' | 'color';
   hasColor?: boolean;
   defaultColor?: string;
 }
@@ -19,7 +21,7 @@ export interface TemplateField {
 export type TemplateComponent = (props: { data: Record<string, string> }) => JSX.Element;
 
 // 템플릿 카테고리 및 변형 목록
-export const templateCategories: TemplateCategory[] = ['표지', '본문 1', '본문 2', '본문 3', '갤러리', '기타'];
+export const templateCategories: TemplateCategory[] = ['표지', '본문 1', '본문 2', '본문 3', '본문 4', '기타'];
 export const templateVariants: TemplateVariant[] = ['유형1', '유형2'];
 
 // 템플릿 컴포넌트 맵
@@ -29,15 +31,18 @@ export const templateComponentMap: Record<TemplateCategory, Partial<Record<Templ
     유형2: CoverType02Preview,
   },
   '본문 1': {
-    유형1: BlankTemplatePreview,
+    유형1: Content1Type01Preview,
+    유형2: Content1Type02Preview,
   },
   '본문 2': {
     유형1: BlankTemplatePreview,
+    유형2: BlankTemplatePreview,
   },
   '본문 3': {
     유형1: BlankTemplatePreview,
+    유형2: BlankTemplatePreview,
   },
-  갤러리: {
+  '본문 4': {
     유형1: BlankTemplatePreview,
   },
   기타: {
@@ -74,10 +79,23 @@ export const templateFieldConfigs: Record<TemplateCategory, Partial<Record<Templ
       { id: 'imageUrl', label: '이미지', description: '하단에 표시될 이미지', placeholder: '이미지를 선택하세요', type: 'image' },
     ],
   },
-  '본문 1': {},
+  '본문 1': {
+    유형1: [
+      { id: 'subtitle', label: '1. 서브타이틀영역', description: '서브 타이틀', placeholder: '내용 입력', type: 'text', hasColor: true, defaultColor: '#FFFFFF' },
+      { id: 'label', label: '2. 번호영역', description: '번호 텍스트', placeholder: '내용 입력', type: 'text', hasColor: true, defaultColor: '#D1D5DB' },
+      { id: 'titlePrimary', label: '3. 타이틀영역', description: '메인 타이틀', placeholder: '내용 입력', type: 'text', hasColor: true, defaultColor: '#FFFFFF' },
+      { id: 'body1', label: '4. 본문영역', description: '본문 내용', placeholder: '내용 입력', type: 'text', hasColor: true, defaultColor: '#E5E7EB' },
+    ],
+    유형2: [
+      { id: 'subtitle', label: '1. 서브타이틀영역', description: '서브 타이틀', placeholder: '내용 입력', type: 'text', hasColor: true, defaultColor: '#FFFFFF' },
+      { id: 'label', label: '2. 번호영역', description: '번호 텍스트', placeholder: '내용 입력', type: 'text', hasColor: true, defaultColor: '#D1D5DB' },
+      { id: 'titlePrimary', label: '3. 타이틀영역', description: '메인 타이틀', placeholder: '내용 입력', type: 'text', hasColor: true, defaultColor: '#FFFFFF' },
+      { id: 'body1', label: '4. 본문영역', description: '본문 내용', placeholder: '내용 입력', type: 'text', hasColor: true, defaultColor: '#E5E7EB' },
+    ],
+  },
   '본문 2': {},
   '본문 3': {},
-  갤러리: {},
+  '본문 4': {},
   기타: {},
 };
 
@@ -101,11 +119,26 @@ export const templateDefaultValues: Record<TemplateCategory, Partial<Record<Temp
   },
   '본문 1': {
     유형1: {
-      message: '본문 1 페이지가 준비 중입니다.',
+      containerBackgroundColor: '#0099FF',
+      subtitle: '서브타이틀영역',
+      label: '번호영역',
+      titlePrimary: '타이틀영역',
+      body1: '본문영역',
+      backgroundColor: '#000000', // 전역 배경색 기본값
+    },
+    유형2: {
+      subtitle: '서브타이틀영역',
+      label: '번호영역',
+      titlePrimary: '타이틀영역',
+      body1: '본문영역',
+      backgroundColor: '#000000', // 전체 배경색 기본값
     },
   },
   '본문 2': {
     유형1: {
+      message: '본문 2 페이지가 준비 중입니다.',
+    },
+    유형2: {
       message: '본문 2 페이지가 준비 중입니다.',
     },
   },
@@ -113,10 +146,13 @@ export const templateDefaultValues: Record<TemplateCategory, Partial<Record<Temp
     유형1: {
       message: '본문 3 페이지가 준비 중입니다.',
     },
+    유형2: {
+      message: '본문 3 페이지가 준비 중입니다.',
+    },
   },
-  갤러리: {
+  '본문 4': {
     유형1: {
-      message: '갤러리 페이지가 준비 중입니다.',
+      message: '본문 4 페이지가 준비 중입니다.',
     },
   },
   기타: {

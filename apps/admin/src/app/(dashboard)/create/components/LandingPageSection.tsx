@@ -558,6 +558,7 @@ const LandingPageSection = forwardRef<LandingPageSectionRef, LandingPageSectionP
             }`,
           };
 
+
           // 이미지 필드 처리
           if (field.type === 'image') {
             return (
@@ -768,7 +769,23 @@ const LandingPageSection = forwardRef<LandingPageSectionRef, LandingPageSectionP
                               </div>
                               <div className="relative w-full overflow-hidden rounded-xl">
                                 <img
-                                  src={item === '유형1' ? '/images/templates/type01-preview.png' : '/images/templates/type02-preview.png'}
+                                  src={(() => {
+                                    // 페이지 타입별 이미지 매핑
+                                    if (pageType === '표지') {
+                                      return item === '유형1' ? '/images/templates/type01-preview.png' : '/images/templates/type02-preview.png';
+                                    } else if (pageType === '본문 1') {
+                                      return item === '유형1' ? '/images/templates/content1-type1-preview.png' : '/images/templates/content1-type2-preview.png';
+                                    } else if (pageType === '본문 2') {
+                                      return item === '유형1' ? '/images/templates/content2-type1-preview.png' : '/images/templates/content2-type2-preview.png';
+                                    } else if (pageType === '본문 3') {
+                                      return item === '유형1' ? '/images/templates/content3-type1-preview.png' : '/images/templates/content3-type2-preview.png';
+                                    } else if (pageType === '본문 4') {
+                                      return item === '유형1' ? '/images/templates/content4-type1-preview.png' : '/images/templates/content4-type2-preview.png';
+                                    } else {
+                                      // 기타 또는 기본값
+                                      return item === '유형1' ? '/images/templates/type01-preview.png' : '/images/templates/type02-preview.png';
+                                    }
+                                  })()}
                                   alt={`${displayLabel} 미리보기`}
                                   className="w-full h-auto object-contain max-h-32"
                                 />
@@ -789,6 +806,45 @@ const LandingPageSection = forwardRef<LandingPageSectionRef, LandingPageSectionP
               {/* 템플릿 디자인 */}
               <div>
                 <h4 className="text-sm font-semibold text-gray-800 mb-2">2. 템플릿 디자인</h4>
+                
+                {/* 배경색 선택 */}
+                <div className="mb-6">
+                  <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+                    <div className="mb-4 flex items-start gap-3">
+                      <label className="text-sm font-semibold text-gray-800 pt-2">
+                        배경색
+                      </label>
+                      <div className="flex-1">
+                        <div className="text-xs text-gray-500 mb-2">페이지 배경 색상을 선택하세요</div>
+                      </div>
+                    </div>
+                    <ColorPicker
+                      value={currentBackgroundColor}
+                      onChange={handleBackgroundColorChange}
+                    />
+                  </div>
+                </div>
+
+                {/* 컨테이너 배경색 선택 (본문 1 유형1에만 표시) */}
+                {pageType === '본문 1' && templateType === '유형1' && (
+                  <div className="mb-6">
+                    <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+                      <div className="mb-4 flex items-start gap-3">
+                        <label className="text-sm font-semibold text-gray-800 pt-2">
+                          컨테이너 배경색
+                        </label>
+                        <div className="flex-1">
+                          <div className="text-xs text-gray-500 mb-2">박스 배경 색상을 선택하세요</div>
+                        </div>
+                      </div>
+                      <ColorPicker
+                        value={currentDesignValues['containerBackgroundColor'] ?? '#0099FF'}
+                        onChange={(color) => handleDesignChange('containerBackgroundColor', color)}
+                      />
+                    </div>
+                  </div>
+                )}
+
                 {renderDesignFields()}
               </div>
             </div>
