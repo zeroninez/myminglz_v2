@@ -96,6 +96,12 @@ const templateComponentMap: Record<string, Record<string, React.ComponentType<{ 
   // TODO: 다른 템플릿 추가
 };
 
+// 디버깅: 템플릿 매핑 확인
+console.log('🔍 템플릿 매핑 키들:', Object.keys(templateComponentMap));
+console.log('🔍 본문 1 템플릿:', templateComponentMap['본문 1']);
+console.log('🔍 Content1Type01 컴포넌트:', Content1Type01);
+console.log('🔍 Content1Type02 컴포넌트:', Content1Type02);
+
 export default function EventLandingPage() {
   const params = useParams();
   const router = useRouter();
@@ -225,6 +231,9 @@ export default function EventLandingPage() {
     landingPages: eventData?.landing_pages.map(p => ({
       page_number: p.page_number,
       page_type: p.page_type,
+      template_type: p.template_type,
+      page_type_raw: JSON.stringify(p.page_type),
+      template_type_raw: JSON.stringify(p.template_type),
     })),
   });
 
