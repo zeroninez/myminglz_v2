@@ -9,6 +9,8 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import CoverType01 from '@/components/templates/CoverType01';
 import CoverType02 from '@/components/templates/CoverType02';
+import Content1Type01 from '@/components/templates/Content1Type01';
+import Content1Type02 from '@/components/templates/Content1Type02';
 import { CouponService } from '@myminglz/core';
 
 interface EventData {
@@ -86,6 +88,10 @@ const templateComponentMap: Record<string, Record<string, React.ComponentType<{ 
   표지: {
     유형1: CoverType01,
     유형2: CoverType02,
+  },
+  '본문 1': {
+    유형1: Content1Type01,
+    유형2: Content1Type02,
   },
   // TODO: 다른 템플릿 추가
 };
