@@ -181,6 +181,16 @@ const LandingPageSection = forwardRef<LandingPageSectionRef, LandingPageSectionP
 
   const SelectedTemplate = templateComponentMap[pageType]?.[templateType];
   const currentFields = templateFieldConfigs[pageType]?.[templateType] ?? [];
+  
+  // 디버깅: 현재 선택된 템플릿 정보 로그
+  console.log('🔍 현재 템플릿 정보:', {
+    pageType,
+    templateType,
+    hasTemplate: !!SelectedTemplate,
+    fieldsCount: currentFields.length,
+    templateName: SelectedTemplate?.name,
+    fields: currentFields.map(f => f.label)
+  });
 
   const currentDefaultValues = useMemo(
     () => templateDefaultValues[pageType]?.[templateType] ?? {},
@@ -825,8 +835,8 @@ const LandingPageSection = forwardRef<LandingPageSectionRef, LandingPageSectionP
                   </div>
                 </div>
 
-                {/* 컨테이너 배경색 선택 (본문 1 유형1에만 표시) */}
-                {pageType === '본문 1' && templateType === '유형1' && (
+                {/* 컨테이너 배경색 선택 (본문 1 유형1, 본문 2 유형1에만 표시) */}
+                {((pageType === '본문 1' && templateType === '유형1') || (pageType === '본문 2' && templateType === '유형1')) && (
                   <div className="mb-6">
                     <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
                       <div className="mb-4 flex items-start gap-3">
