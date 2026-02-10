@@ -10,6 +10,7 @@ interface PhoneFrameProps {
   timeText?: string;
   statusIndicator?: ReactNode;
   contentClassName?: string;
+  noPadding?: boolean;
 }
 
 export default function PhoneFrame({
@@ -22,6 +23,7 @@ export default function PhoneFrame({
   timeText = '9:41',
   statusIndicator = <span>●●●</span>,
   contentClassName = 'text-white',
+  noPadding = false,
 }: PhoneFrameProps) {
   return (
     <div className="flex flex-col items-center">
@@ -30,11 +32,11 @@ export default function PhoneFrame({
         style={{ borderColor: outerBorderColor, backgroundColor: outerBackgroundColor }}
       >
         <div
-          className={`relative flex h-[470px] w-[232px] flex-col rounded-[28px] border px-6 py-7 ${contentClassName}`}
+          className={`relative flex h-[470px] w-[232px] flex-col rounded-[28px] border ${noPadding ? '' : 'px-6 py-7'} overflow-hidden ${contentClassName}`}
           style={{ borderColor: innerBorderColor, backgroundColor: innerBackgroundColor }}
         >
           {showStatusBar && (
-            <div className="flex items-center justify-between text-[10px] text-gray-300">
+            <div className={`flex items-center justify-between text-[10px] text-gray-300 ${noPadding ? 'px-6 pt-3' : ''}`}>
               <span>{timeText}</span>
               <div className="flex items-center gap-1">{statusIndicator}</div>
             </div>
