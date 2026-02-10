@@ -1,5 +1,3 @@
-import PhoneFrame from './PhoneFrame';
-
 interface Content1Type01Props {
   data: Record<string, string>;
 }
@@ -31,9 +29,9 @@ export default function Content1Type01({ data }: Content1Type01Props) {
   const isImageVisible = imageUrlVisible !== 'false';
 
   return (
-    <PhoneFrame 
-      innerBackgroundColor={backgroundColor}
-      noPadding={true}
+    <div 
+      className="relative flex h-full w-full flex-col overflow-hidden"
+      style={{ backgroundColor }}
     >
       <div className="flex h-full flex-col mt-6 mb-3 px-3">
         {/* 라운드된 콘텐츠 박스 */}
@@ -44,51 +42,57 @@ export default function Content1Type01({ data }: Content1Type01Props) {
           {/* 서브타이틀 + 번호 영역 */}
           <div className="flex justify-between items-start mb-4">
             {/* 서브타이틀 영역 */}
-            {isSubtitleVisible && (
-              <div 
-                className="text-[16px] font-bold text-left"
-                style={{ color: subtitleColor }}
-              >
-                {subtitle}
-              </div>
-            )}
+            <div 
+              className="text-[16px] font-bold text-left"
+              style={{ 
+                color: subtitleColor,
+                visibility: isSubtitleVisible && subtitle ? 'visible' : 'hidden'
+              }}
+            >
+              {subtitle || '\u00A0'}
+            </div>
 
             {/* 번호 영역 */}
-            {isLabelVisible && (
-              <div 
-                className="text-[14px] font-medium text-right"
-                style={{ color: labelColor }}
-              >
-                {label}
-              </div>
-            )}
+            <div 
+              className="text-[14px] font-medium text-right"
+              style={{ 
+                color: labelColor,
+                visibility: isLabelVisible && label ? 'visible' : 'hidden'
+              }}
+            >
+              {label || '\u00A0'}
+            </div>
           </div>
 
           {/* 타이틀 영역 */}
-          {isTitlePrimaryVisible && (
-            <div 
-              className="text-[20px] font-bold mb-6 leading-tight text-left"
-              style={{ color: titlePrimaryColor }}
-            >
-              {titlePrimary}
-            </div>
-          )}
+          <div 
+            className="text-[20px] font-bold mb-6 leading-tight text-left"
+            style={{ 
+              color: titlePrimaryColor,
+              visibility: isTitlePrimaryVisible && titlePrimary ? 'visible' : 'hidden',
+              minHeight: '2rem'
+            }}
+          >
+            {titlePrimary || '\u00A0'}
+          </div>
 
           {/* 본문 영역 */}
-          {isBody1Visible && (
-            <div 
-              className="text-[12px] leading-relaxed flex-1 text-left"
-              style={{ color: body1Color }}
-            >
-              {body1 && body1.split('\n').map((line, index) => (
-                <div key={index} className="mb-2">
-                  {line}
-                </div>
-              ))}
-            </div>
-          )}
+          <div 
+            className="text-[12px] leading-relaxed flex-1 text-left"
+            style={{ 
+              color: body1Color,
+              visibility: isBody1Visible && body1 ? 'visible' : 'hidden',
+              minHeight: '1rem'
+            }}
+          >
+            {body1 ? body1.split('\n').map((line, index) => (
+              <div key={index} className="mb-2">
+                {line}
+              </div>
+            )) : '\u00A0'}
+          </div>
         </div>
       </div>
-    </PhoneFrame>
+    </div>
   );
 }
