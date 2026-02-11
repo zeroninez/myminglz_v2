@@ -82,6 +82,14 @@ function convertPageContentsToTemplateData(
     data[`${content.field_id}Visible`] = content.is_visible ? 'true' : 'false';
   });
 
+  // 디버깅: containerBackgroundColor 확인
+  console.log('🔍 convertPageContentsToTemplateData:', {
+    contents,
+    backgroundColor,
+    resultData: data,
+    hasContainerBg: data.containerBackgroundColor
+  });
+
   return data;
 }
 
@@ -266,6 +274,16 @@ export default function EventLandingPage() {
         const normalizedPageType = pageData.page_type?.trim() || '';
         const normalizedTemplateType = pageData.template_type?.trim() || '';
         
+        // 디버깅: 페이지 데이터 상세 확인
+        console.log('🔍 페이지 데이터 상세:', {
+          page_number: pageData.page_number,
+          page_type: normalizedPageType,
+          template_type: normalizedTemplateType,
+          background_color: pageData.background_color,
+          contents: pageData.contents,
+          contentsLength: pageData.contents?.length || 0
+        });
+
         const Component = templateComponentMap[normalizedPageType]?.[normalizedTemplateType];
         const data = convertPageContentsToTemplateData(
           pageData.contents,
@@ -279,6 +297,7 @@ export default function EventLandingPage() {
           template_type: normalizedTemplateType,
           isType01: Component === templateComponentMap['표지']?.['유형1'],
           isType02: Component === templateComponentMap['표지']?.['유형2'],
+          templateData: data
         });
 
         // 템플릿을 찾지 못한 경우 상세 로그

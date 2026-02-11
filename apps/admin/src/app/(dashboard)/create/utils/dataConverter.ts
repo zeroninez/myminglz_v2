@@ -93,7 +93,7 @@ export function convertPageBuilderToDB(
     });
     
     // 특별한 필드들 추가 (templateFieldConfigs에 없지만 저장해야 하는 필드들)
-    const specialFields = ['containerBackgroundColor', 'backgroundColor'];
+    const specialFields = ['containerBackgroundColor'];
     specialFields.forEach(fieldId => {
       if (designValues[fieldId] !== undefined) {
         fieldIds.add(fieldId);
