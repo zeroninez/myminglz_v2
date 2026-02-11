@@ -4,6 +4,7 @@ import CoverType02Preview from '../templates/cover/Type02Preview';
 import Content1Type01Preview from '../templates/content/Content1Type01Preview';
 import Content1Type02Preview from '../templates/content/Content1Type02Preview';
 import Content2Type01Preview from '../templates/content/Content2Type01Preview';
+import Content2Type02Preview from '../templates/content/Content2Type02Preview';
 
 // 타입 정의
 export type TemplateCategory = '표지' | '본문 1' | '본문 2' | '본문 3' | '본문 4' | '기타';
@@ -37,7 +38,7 @@ export const templateComponentMap: Record<TemplateCategory, Partial<Record<Templ
   },
   '본문 2': {
     유형1: Content2Type01Preview,
-    유형2: BlankTemplatePreview,
+    유형2: Content2Type02Preview,
   },
   '본문 3': {
     유형1: BlankTemplatePreview,
@@ -102,6 +103,13 @@ export const templateFieldConfigs: Record<TemplateCategory, Partial<Record<Templ
       { id: 'titlePrimary', label: '3. 타이틀영역', description: '메인 타이틀', placeholder: '내용 입력', type: 'text', hasColor: true, defaultColor: '#FFFFFF' },
       { id: 'body1', label: '4. 본문영역', description: '본문 내용', placeholder: '내용 입력', type: 'text', hasColor: true, defaultColor: '#E5E7EB' },
     ],
+    유형2: [
+      { id: 'imageUrl', label: '이미지 영역', description: '하단 이미지', type: 'image' },
+      { id: 'subtitle', label: '1. 서브타이틀영역', description: '서브 타이틀', placeholder: '내용 입력', type: 'text', hasColor: true, defaultColor: '#FFFFFF' },
+      { id: 'label', label: '2. 번호영역', description: '번호 텍스트', placeholder: '내용 입력', type: 'text', hasColor: true, defaultColor: '#D1D5DB' },
+      { id: 'titlePrimary', label: '3. 타이틀영역', description: '메인 타이틀', placeholder: '내용 입력', type: 'text', hasColor: true, defaultColor: '#FFFFFF' },
+      { id: 'body1', label: '4. 본문영역', description: '본문 내용', placeholder: '내용 입력', type: 'text', hasColor: true, defaultColor: '#E5E7EB' },
+    ],
   },
   '본문 3': {},
   '본문 4': {},
@@ -154,7 +162,12 @@ export const templateDefaultValues: Record<TemplateCategory, Partial<Record<Temp
       backgroundColor: '#000000', // 전역 배경색 기본값
     },
     유형2: {
-      message: '본문 2 페이지가 준비 중입니다.',
+      subtitle: '서브타이틀영역',
+      label: '번호영역',
+      titlePrimary: '타이틀영역',
+      body1: '본문영역',
+      imageUrl: '',
+      backgroundColor: '#0099FF', // 전체 배경색 기본값
     },
   },
   '본문 3': {

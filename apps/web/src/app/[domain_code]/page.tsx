@@ -12,6 +12,7 @@ import CoverType02 from '@/components/templates/CoverType02';
 import Content1Type01 from '@/components/templates/Content1Type01';
 import Content1Type02 from '@/components/templates/Content1Type02';
 import Content2Type01 from '@/components/templates/Content2Type01';
+import Content2Type02 from '@/components/templates/Content2Type02';
 import { CouponService } from '@myminglz/core';
 
 interface EventData {
@@ -96,6 +97,7 @@ const templateComponentMap: Record<string, Record<string, React.ComponentType<{ 
   },
   '본문 2': {
     유형1: Content2Type01,
+    유형2: Content2Type02,
   },
   // TODO: 다른 템플릿 추가
 };
