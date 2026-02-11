@@ -91,6 +91,14 @@ export function convertPageBuilderToDB(
         fieldIds.add(baseFieldId);
       }
     });
+    
+    // 특별한 필드들 추가 (templateFieldConfigs에 없지만 저장해야 하는 필드들)
+    const specialFields = ['containerBackgroundColor', 'backgroundColor'];
+    specialFields.forEach(fieldId => {
+      if (designValues[fieldId] !== undefined) {
+        fieldIds.add(fieldId);
+      }
+    });
 
     // 각 필드에 대해 콘텐츠 생성
     fieldIds.forEach((fieldId) => {

@@ -80,7 +80,7 @@ export default function Content2Type02Preview({ data }: Content2Type02PreviewPro
           </div>
         )}
 
-        {/* 본문 영역 - 고정 높이로 변경하여 이미지 영역이 위로 올라가게 */}
+        {/* 본문 영역*/}
         {isBody1Visible && (
           <div 
             className="text-[11px] leading-normal mb-6 text-left h-32"
