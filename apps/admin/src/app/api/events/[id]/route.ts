@@ -297,6 +297,8 @@ export async function PUT(
 
     const eventId = resolvedParams.id;
     const body = await request.json();
+    
+    console.log('🔵 [API] 이벤트 수정 요청:', { eventId, body: JSON.stringify(body, null, 2) });
 
     // 이벤트 소유권 확인
     const { data: existingEvent } = await supabase
@@ -325,6 +327,8 @@ export async function PUT(
     if (body.coupon_preview_image_url !== undefined) updateData.coupon_preview_image_url = body.coupon_preview_image_url;
     if (body.mission_config !== undefined) updateData.mission_config = body.mission_config;
     if (body.event_info_config !== undefined) updateData.event_info_config = body.event_info_config;
+    
+    console.log('🔵 [API] 업데이트할 데이터:', updateData);
 
     const { data: updatedEvent, error: updateError } = await supabase
       .from('events')
@@ -334,12 +338,33 @@ export async function PUT(
       .single();
 
     if (updateError) {
-      console.error('이벤트 수정 오류:', updateError);
+      console.error('❌ [API] 이벤트 업데이트 오류:', updateError);
       return NextResponse.json(
-        { success: false, error: '이벤트 수정에 실패했습니다.' },
+        { success: false, error: '이벤트 수정에 실패했습니다.', details: updateError.message },
         { status: 500 }
       );
     }
+
+    // status 필드를 별도로 업데이트 시도 (status 컬럼이 없을 수 있으므로)
+    if (body.status !== undefined) {
+      try {
+        const { error: statusError } = await supabase
+          .from('events')
+          .update({ status: body.status })
+          .eq('id', eventId);
+        
+        if (statusError) {
+          console.warn('⚠️ [API] status 필드 업데이트 실패 (컬럼이 없을 수 있음):', statusError.message);
+          // status 업데이트 실패는 치명적이지 않으므로 계속 진행
+        } else {
+          console.log('✅ [API] status 필드 업데이트 성공:', body.status);
+        }
+      } catch (statusError) {
+        console.warn('⚠️ [API] status 필드 업데이트 예외:', statusError);
+        // status 업데이트 실패는 치명적이지 않으므로 계속 진행
+      }
+    }
+
 
     // Location 생성/업데이트 (쿠폰 발급을 위해)
     // domain_code나 name이 변경되었을 때 location도 업데이트
@@ -543,15 +568,18 @@ export async function PUT(
       }
     }
 
+    console.log('✅ [API] 이벤트 수정 성공:', { eventId, updatedEvent: updatedEvent?.id });
+    
     return NextResponse.json({
       success: true,
       data: updatedEvent,
       message: '이벤트가 성공적으로 수정되었습니다.',
     });
   } catch (error: any) {
-    console.error('이벤트 수정 중 오류:', error);
+    console.error('❌ [API] 이벤트 수정 중 오류:', error);
+    console.error('❌ [API] 오류 스택:', error.stack);
     return NextResponse.json(
-      { success: false, error: '서버 오류가 발생했습니다.' },
+      { success: false, error: '서버 오류가 발생했습니다.', details: error.message },
       { status: 500 }
     );
   }

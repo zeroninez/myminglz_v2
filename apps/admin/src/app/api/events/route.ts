@@ -67,56 +67,77 @@ export async function POST(request: Request) {
     const userId = userData.user.id;
     const body = await request.json();
 
-    // 필수 필드 검증
-    const { name, domain_code, landing_pages } = body;
-    if (!name || !domain_code) {
+    // 필수 필드 검증 (임시저장의 경우 완화)
+    const { name, domain_code, landing_pages, status } = body;
+    const isTempSave = status === 'pending';
+    
+    if (!isTempSave && (!name || !domain_code)) {
       return NextResponse.json(
         { success: false, error: '이벤트 이름과 도메인 코드는 필수입니다.' },
         { status: 400 }
       );
     }
 
-    // 도메인 코드 중복 확인
-    const { data: existingEvent } = await supabase
-      .from('events')
-      .select('id')
-      .eq('domain_code', domain_code)
-      .single();
+    // 도메인 코드 중복 확인 (임시저장이 아닌 경우에만)
+    if (!isTempSave && domain_code) {
+      const { data: existingEvent } = await supabase
+        .from('events')
+        .select('id')
+        .eq('domain_code', domain_code)
+        .single();
 
-    if (existingEvent) {
-      return NextResponse.json(
-        { success: false, error: '이미 사용 중인 도메인 코드입니다.' },
-        { status: 400 }
-      );
+      if (existingEvent) {
+        return NextResponse.json(
+          { success: false, error: '이미 사용 중인 도메인 코드입니다.' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // 임시저장의 경우 임시 도메인 코드 생성
+    let finalDomainCode = domain_code;
+    if (isTempSave && !domain_code) {
+      finalDomainCode = `temp-${userId}-${Date.now()}`;
     }
 
     // 트랜잭션 시작 (Supabase는 트랜잭션을 직접 지원하지 않으므로 순차 실행)
     // 1. 이벤트 생성
+    console.log('🔵 [API] 이벤트 생성 시도:', {
+      isTempSave,
+      name: name || (isTempSave ? `임시저장-${new Date().toLocaleString('ko-KR')}` : null),
+      domain_code: finalDomainCode,
+    });
+
+    // status 필드 없이 먼저 시도
+    const insertData = {
+      user_id: userId,
+      name: name || (isTempSave ? `임시저장-${new Date().toLocaleString('ko-KR')}` : null),
+      domain_code: finalDomainCode,
+      start_date: body.start_date || null,
+      end_date: body.end_date || null,
+      background_color: body.background_color || '#000000',
+      description: body.description || null,
+      content_html: body.content_html || null,
+      coupon_preview_image_url: body.coupon_preview_image_url || null,
+      mission_config: body.mission_config || null,
+      event_info_config: body.event_info_config || null,
+    };
+
     const { data: event, error: eventError } = await supabase
       .from('events')
-      .insert({
-        user_id: userId,
-        name,
-        domain_code,
-        start_date: body.start_date || null,
-        end_date: body.end_date || null,
-        background_color: body.background_color || '#000000',
-        description: body.description || null,
-        content_html: body.content_html || null,
-        coupon_preview_image_url: body.coupon_preview_image_url || null,
-        mission_config: body.mission_config || null,
-        event_info_config: body.event_info_config || null,
-      })
+      .insert(insertData)
       .select()
       .single();
 
     if (eventError) {
-      console.error('이벤트 생성 오류:', eventError);
+      console.error('❌ [API] 이벤트 생성 오류:', eventError);
       return NextResponse.json(
         { success: false, error: '이벤트 생성에 실패했습니다.', details: eventError.message },
         { status: 500 }
       );
     }
+
+    console.log('✅ [API] 이벤트 생성 성공:', event.id);
 
     // 1.5. Location 생성 (쿠폰 발급을 위해)
     // domain_code를 slug로 사용하여 location 생성
@@ -363,10 +384,10 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const allEvents = searchParams.get('all') === 'true';
 
-    // 이벤트 목록 조회 (관리자용으로 user_id도 포함)
+    // 이벤트 목록 조회 (관리자용으로 user_id와 status도 포함)
     let query = supabase
       .from('events')
-      .select('id, name, domain_code, start_date, end_date, event_info_config, created_at, updated_at, user_id');
+      .select('*');
 
     // 관리자이고 all=true 파라미터가 있으면 모든 이벤트 조회, 아니면 자신의 이벤트만
     if (isAdmin && allEvents) {

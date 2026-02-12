@@ -15,6 +15,8 @@ interface Event {
   } | null;
   created_at: string;
   updated_at: string;
+  status?: string;
+  description?: string;
 }
 
 interface ManageTableProps {
@@ -38,7 +40,20 @@ export default function ManageTable({
 }: ManageTableProps) {
   // 이벤트 상태 판단 함수
   const getEventStatus = (event: Event): EventStatus => {
-    if (!event.start_date || !event.end_date) return 'waiting';
+    // status 필드가 있는 경우 우선 사용
+    if (event.status === 'pending') {
+      return 'waiting';
+    }
+    
+    // 기존 방식: 임시저장 이벤트 판단 (하위 호환성)
+    if (event.domain_code?.startsWith('temp-') || event.name?.startsWith('[임시저장]')) {
+      return 'waiting';
+    }
+    
+    // 날짜가 없는 경우 대기 상태
+    if (!event.start_date || !event.end_date) {
+      return 'waiting';
+    }
     
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -103,6 +118,12 @@ export default function ManageTable({
               const storeCount = stores.length;
               const eventStatus = getEventStatus(event);
               
+              // 임시저장 이벤트 판단 (이벤트명이 [임시저장]으로 시작하거나 도메인 코드가 temp-로 시작하는 경우)
+              const isTempEvent = event.name.startsWith('[임시저장]') || event.domain_code.startsWith('temp-');
+              
+              // 기간이 설정되지 않은 이벤트 (임시저장이 아니지만 날짜가 없는 경우)
+              const hasNoDates = !event.start_date || !event.end_date;
+              
               return (
                 <tr key={event.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap border-r border-gray-200">
@@ -120,42 +141,51 @@ export default function ManageTable({
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap border-r border-gray-200">
                     <div className="text-sm text-gray-500">
-                      {event.start_date && event.end_date
-                        ? `${new Date(event.start_date).toLocaleDateString('ko-KR')} ~ ${new Date(event.end_date).toLocaleDateString('ko-KR')}`
-                        : '기간 미설정'}
+                      {isTempEvent
+                        ? '대기중'
+                        : hasNoDates
+                        ? '기간을 설정해주세요'
+                        : `${new Date(event.start_date!).toLocaleDateString('ko-KR')} ~ ${new Date(event.end_date!).toLocaleDateString('ko-KR')}`}
                     </div>
                   </td>
                   <td className="px-6 py-4 border-r border-gray-200">
-                    <a
-                      href={eventUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-blue-600 hover:text-blue-800 hover:underline truncate block"
-                      title={event.domain_code}
-                    >
-                      {event.domain_code}
-                    </a>
+                    {isTempEvent ? (
+                      <div className="text-sm text-gray-500">대기중</div>
+                    ) : hasNoDates ? (
+                      <div className="text-sm text-gray-500">페이지 생성을 완료해주세요</div>
+                    ) : (
+                      <a
+                        href={eventUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-blue-600 hover:text-blue-800 hover:underline truncate block"
+                        title={event.domain_code}
+                      >
+                        {event.domain_code}
+                      </a>
+                    )}
                   </td>
                   <td className="px-6 py-4 border-r border-gray-200">
-                    <div className="text-sm text-gray-500 truncate" title={
-                      storeCount > 0 ? (
-                        storeCount === 1 ? 
-                          stores[0]?.name || '사용처 없음' : 
-                          `${stores[0]?.name || '사용처'} 외 ${storeCount - 1}곳`
-                      ) : '사용처 없음'
-                    }>
-                      {storeCount > 0 ? (
-                        storeCount === 1 ? 
-                          stores[0]?.name || '사용처 없음' : 
-                          `${stores[0]?.name || '사용처'} 외 ${storeCount - 1}곳`
-                      ) : '사용처 없음'}
+                    <div className="text-sm text-gray-500 truncate">
+                      {isTempEvent ? '대기중' : (
+                        storeCount > 0 ? (
+                          storeCount === 1 ? 
+                            stores[0]?.name || '사용처 없음' : 
+                            `${stores[0]?.name || '사용처'} 외 ${storeCount - 1}곳`
+                        ) : '사용처 없음'
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap border-r border-gray-200">
                     <div className="flex flex-col gap-1">
                       <button
-                        onClick={() => onOpenQRModal(event)}
-                        className="inline-flex items-center justify-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded hover:bg-blue-200 transition-colors w-28"
+                        onClick={isTempEvent || hasNoDates ? undefined : () => onOpenQRModal(event)}
+                        disabled={isTempEvent || hasNoDates}
+                        className={`inline-flex items-center justify-center gap-1 px-3 py-1 text-sm rounded transition-colors w-28 ${
+                          isTempEvent || hasNoDates
+                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            : 'bg-blue-100 text-blue-700 hover:bg-blue-200 cursor-pointer'
+                        }`}
                       >
                         이벤트 QR
                         <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -166,8 +196,13 @@ export default function ManageTable({
                       </button>
                       {storeCount > 0 && (
                         <button
-                          onClick={() => onOpenQRModal(event, 'store')}
-                          className="inline-flex items-center justify-center gap-1 px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded hover:bg-gray-200 transition-colors w-28"
+                          onClick={isTempEvent || hasNoDates ? undefined : () => onOpenQRModal(event, 'store')}
+                          disabled={isTempEvent || hasNoDates}
+                          className={`inline-flex items-center justify-center gap-1 px-3 py-1 text-sm rounded transition-colors w-28 ${
+                            isTempEvent || hasNoDates
+                              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200 cursor-pointer'
+                          }`}
                         >
                           사용처 QR
                           <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

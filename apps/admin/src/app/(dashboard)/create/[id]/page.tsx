@@ -6,6 +6,7 @@ import EventInfoSection, { type EventInfoSectionRef } from '../components/EventI
 import EventMissionSection from '../components/EventMissionSection';
 import LandingPageSection, { type LandingPageSectionRef } from '../components/LandingPageSection';
 import { convertPageBuilderToDB, convertDBToPageBuilder } from '../utils/dataConverter';
+import { useEvents } from '@/contexts/EventsContext';
 
 // 각 섹션의 데이터 타입
 interface EventInfoData {
@@ -34,6 +35,7 @@ export default function EditPage() {
   const router = useRouter();
   const params = useParams();
   const eventId = params.id as string;
+  const { refetch } = useEvents();
 
   const steps = [
     { number: 1, title: '기본정보' },
@@ -65,6 +67,7 @@ export default function EditPage() {
   const [initialEventInfo, setInitialEventInfo] = useState<EventInfoData | null>(null);
   const [initialEventMission, setInitialEventMission] = useState<EventMissionData | null>(null);
   const [initialLandingPage, setInitialLandingPage] = useState<LandingPageData | null>(null);
+  const [originalEventData, setOriginalEventData] = useState<any>(null);
 
   // 기존 이벤트 데이터 불러오기
   useEffect(() => {
@@ -82,12 +85,18 @@ export default function EditPage() {
 
         const eventData = result.data;
         
+        // 원본 이벤트 데이터 저장
+        setOriginalEventData(eventData);
+        
         console.log('🔵 [수정] 이벤트 데이터 로드:', {
           hasStores: !!eventData.stores,
           storesCount: eventData.stores?.length || 0,
           hasEventInfoConfig: !!eventData.event_info_config,
           hasEventInfoConfigStores: !!eventData.event_info_config?.stores,
           eventInfoConfigStoresCount: eventData.event_info_config?.stores?.length || 0,
+          status: eventData.status,
+          name: eventData.name,
+          domain_code: eventData.domain_code,
         });
 
         // 날짜 형식 변환 함수 (ISO 형식을 YYYY-MM-DD로 변환)
@@ -184,6 +193,21 @@ export default function EditPage() {
           const landingPageData = convertDBToPageBuilder(eventData.landing_pages);
           setInitialLandingPage(landingPageData);
           landingPageDataRef.current = landingPageData;
+        } else {
+          // 랜딩 페이지 데이터가 없는 경우 기본 페이지(Page 1) 자동 생성
+          const defaultLandingPageData = {
+            pageSelections: {
+              1: { pageType: '표지', templateType: '유형1' }
+            },
+            pageBackgroundColors: {
+              1: '#000000'
+            },
+            designValues: {
+              1: {}
+            },
+          };
+          setInitialLandingPage(defaultLandingPageData);
+          landingPageDataRef.current = defaultLandingPageData;
         }
       } catch (err: any) {
         console.error('이벤트 데이터 로드 오류:', err);
@@ -297,7 +321,113 @@ export default function EditPage() {
     }
   };
 
+  // 임시저장 함수
+  const handleTempSave = async () => {
+    if (isSubmitting) return;
+    
+    setIsSubmitting(true);
+    
+    try {
+      // 현재까지 작성된 데이터 수집
+      const currentEventInfo = eventInfoDataRef.current;
+      const currentMissionData = eventMissionDataRef.current;
+      const currentLandingPageData = landingPageDataRef.current;
+
+      // 임시저장 시 도메인 코드 필수 검증
+      if (!currentEventInfo.domain_code || currentEventInfo.domain_code.trim() === '') {
+        alert('임시저장을 하려면 도메인 주소를 입력해주세요.');
+        return;
+      }
+
+      // 이벤트명 처리 (중복 접두사 방지)
+      let eventName = currentEventInfo.name || '';
+      if (!eventName) {
+        eventName = `[임시저장] ${new Date().toLocaleString('ko-KR')}`;
+      } else if (!eventName.startsWith('[임시저장]')) {
+        eventName = `[임시저장] ${eventName}`;
+      }
+
+      // description 처리 (중복 접두사 방지)
+      let eventDescription = currentEventInfo.description || '';
+      if (!eventDescription.startsWith('[PENDING]')) {
+        eventDescription = `[PENDING] ${eventDescription}`;
+      }
+
+      // 임시저장용 요청 본문 (입력된 날짜 보존)
+      const requestBody = {
+        name: eventName,
+        domain_code: currentEventInfo.domain_code || null,
+        start_date: currentEventInfo.start_date || null, // 입력된 날짜 보존
+        end_date: currentEventInfo.end_date || null,     // 입력된 날짜 보존
+        background_color: currentEventInfo.background_color || '#000000',
+        description: eventDescription, // description에도 pending 표시
+        content_html: currentEventInfo.content_html || null,
+        coupon_preview_image_url: currentEventInfo.coupon_preview_image_url || null,
+        mission_config: currentMissionData.mission_config || null,
+        event_info_config: currentEventInfo.event_info_config || null,
+        landing_pages: convertPageBuilderToDB(currentLandingPageData),
+        status: 'pending' // 임시저장 상태 표시
+      };
+
+      console.log('🔵 [편집] 임시저장 요청 본문:', JSON.stringify(requestBody, null, 2));
+      
+      const response = await fetch(`/api/events/${eventId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      console.log('🔵 [편집] 임시저장 응답 상태:', response.status, response.statusText);
+      
+      let result;
+      try {
+        result = await response.json();
+        console.log('🔵 [편집] 임시저장 API 응답:', result);
+      } catch (parseError) {
+        console.error('❌ [편집] JSON 파싱 오류:', parseError);
+        console.log('🔵 [편집] 응답 텍스트:', await response.text());
+        throw new Error('서버 응답을 파싱할 수 없습니다.');
+      }
+
+      if (!result.success) {
+        console.error('❌ [편집] 임시저장 실패:', result);
+        throw new Error(result.error || '임시저장에 실패했습니다.');
+      }
+
+      console.log('✅ [편집] 임시저장 성공! 수정된 이벤트:', result.event);
+      alert('임시저장이 완료되었습니다. 대기 이벤트 목록에서 확인할 수 있습니다.');
+      
+      // 생성 완료와 동일한 방식으로 페이지 이동 (완전 새로고침)
+      window.location.href = '/manage?filter=waiting';
+      
+    } catch (error: any) {
+      console.error('[편집] 임시저장 오류:', error);
+      alert(error.message || '임시저장 중 오류가 발생했습니다.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const nextLabel = currentStep === steps.length - 1 ? '수정 완료' : '다음';
+
+  // 현재 이벤트가 임시저장 상태인지 확인하는 함수
+  const isTempEvent = () => {
+    if (!originalEventData) return false;
+    
+    // status 필드가 있는 경우 우선 확인
+    if (originalEventData.status === 'pending') {
+      return true;
+    }
+    
+    // 기존 방식: 이벤트명이나 도메인 코드 패턴으로 확인
+    if (originalEventData.name?.startsWith('[임시저장]') || originalEventData.domain_code?.startsWith('temp-')) {
+      return true;
+    }
+    
+    return false;
+  };
 
   // 활성 스텝 위치 계산
   useEffect(() => {
@@ -339,8 +469,18 @@ export default function EditPage() {
 
   return (
     <div className="flex flex-col h-screen">
-      <div className="px-6">
+      <div className="px-6 flex items-center justify-between">
         <h2 className="text-2xl font-bold text-gray-900 mt-4 mb-5">이벤트 수정</h2>
+        {isTempEvent() && (
+          <button
+            onClick={handleTempSave}
+            disabled={isSubmitting}
+            className="text-sm font-bold mt-4 mb-5 hover:opacity-80 transition-opacity disabled:opacity-50"
+            style={{ color: '#32373D' }}
+          >
+            {isSubmitting ? '저장 중...' : '임시저장'}
+          </button>
+        )}
       </div>
       <section className="border-t border-x border-b border-gray-200 bg-white px-6 pt-5 pb-0 shadow-sm relative">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">

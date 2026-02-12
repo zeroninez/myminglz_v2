@@ -13,6 +13,7 @@ interface Event {
   updated_at: string;
   user_id?: string;
   userEmail?: string;
+  status?: string;
   event_info_config?: {
     stores?: Array<{ id?: string; name: string }>;
   } | null;

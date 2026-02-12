@@ -22,6 +22,8 @@ interface Event {
   } | null;
   created_at: string;
   updated_at: string;
+  status?: string;
+  description?: string;
 }
 
 type EventStatus = 'all' | 'waiting' | 'ongoing' | 'ended';
@@ -104,20 +106,7 @@ export default function ManagePage() {
     // 상태로 필터링
     if (activeTab !== 'all') {
       filtered = filtered.filter(event => {
-        // getEventStatus 함수를 여기서 정의
-        const getStatus = (event: Event): EventStatus => {
-          if (!event.start_date || !event.end_date) return 'waiting';
-          
-          const now = new Date();
-          const startDate = new Date(event.start_date);
-          const endDate = new Date(event.end_date);
-          
-          if (now < startDate) return 'waiting';
-          if (now > endDate) return 'ended';
-          return 'ongoing';
-        };
-        
-        return getStatus(event) === activeTab;
+        return getEventStatus(event) === activeTab;
       });
     }
 
@@ -168,19 +157,27 @@ export default function ManagePage() {
 
   // 이벤트 상태 판단 함수
   const getEventStatus = (event: Event): EventStatus => {
-    if (!event.start_date || !event.end_date) return 'waiting';
+    // status 필드가 있는 경우 우선 사용
+    if (event.status === 'pending') {
+      return 'waiting';
+    }
     
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // 기존 방식: 임시저장 이벤트 판단 (하위 호환성)
+    if (event.domain_code?.startsWith('temp-') || event.name?.startsWith('[임시저장]')) {
+      return 'waiting';
+    }
     
+    // 날짜가 없는 경우 대기 상태
+    if (!event.start_date || !event.end_date) {
+      return 'waiting';
+    }
+    
+    const now = new Date();
     const startDate = new Date(event.start_date);
-    startDate.setHours(0, 0, 0, 0);
-    
     const endDate = new Date(event.end_date);
-    endDate.setHours(23, 59, 59, 999); // 종료일은 해당 날짜의 마지막 시간까지
     
-    if (today < startDate) return 'waiting';
-    if (today > endDate) return 'ended';
+    if (now < startDate) return 'waiting';
+    if (now > endDate) return 'ended';
     return 'ongoing';
   };
 

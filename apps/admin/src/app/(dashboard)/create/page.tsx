@@ -8,6 +8,7 @@ import LandingPageSection, { type LandingPageSectionRef } from './components/Lan
 import { convertPageBuilderToDB } from './utils/dataConverter';
 import ConfirmEventCreationModal from './components/ConfirmEventCreationModal';
 import EventCreationSuccessModal from './components/EventCreationSuccessModal';
+import { useEvents } from '@/contexts/EventsContext';
 
 // 각 섹션의 데이터 타입
 interface EventInfoData {
@@ -34,6 +35,7 @@ interface LandingPageData {
 
 export default function CreatePage() {
   const router = useRouter();
+  const { refetch } = useEvents();
   const steps = [
     { number: 1, title: '기본정보' },
     { number: 2, title: '쿠폰 설정' },
@@ -79,9 +81,15 @@ export default function CreatePage() {
   const eventMissionDataRef = useRef<EventMissionData>({});
   const eventMissionSectionRef = useRef<EventMissionSectionRef>(null);
   const landingPageDataRef = useRef<LandingPageData>({
-    pageSelections: {},
-    pageBackgroundColors: {},
-    designValues: {},
+    pageSelections: {
+      1: { pageType: 'main', templateType: 'basic' }
+    },
+    pageBackgroundColors: {
+      1: '#000000'
+    },
+    designValues: {
+      1: {}
+    },
   });
   const landingPageSectionRef = useRef<LandingPageSectionRef>(null);
 
@@ -244,6 +252,7 @@ export default function CreatePage() {
         mission_config: eventMissionDataRef.current.mission_config || null,
         event_info_config: finalEventInfo.event_info_config || null,
         landing_pages: landingPagesData,
+        status: 'active', // 완료된 이벤트는 active 상태
       };
       
       console.log('🔵 API 요청 본문:', JSON.stringify(requestBody, null, 2));
@@ -277,6 +286,86 @@ export default function CreatePage() {
     } catch (error: any) {
       console.error('이벤트 생성 오류:', error);
       alert(error.message || '이벤트 생성 중 오류가 발생했습니다.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // 임시저장 함수
+  const handleTempSave = async () => {
+    if (isSubmitting) return;
+    
+    setIsSubmitting(true);
+    
+    try {
+      // 현재까지 작성된 데이터 수집
+      const currentEventInfo = eventInfoDataRef.current;
+      const currentMissionData = eventMissionDataRef.current;
+      const currentLandingPageData = landingPageDataRef.current;
+
+      // 임시저장 시 도메인 코드 필수 검증
+      if (!currentEventInfo.domain_code || currentEventInfo.domain_code.trim() === '') {
+        alert('임시저장을 하려면 도메인 주소를 입력해주세요.');
+        return;
+      }
+
+      // 이벤트명 처리 (중복 접두사 방지)
+      let eventName = currentEventInfo.name || '';
+      if (!eventName) {
+        eventName = `[임시저장] ${new Date().toLocaleString('ko-KR')}`;
+      } else if (!eventName.startsWith('[임시저장]')) {
+        eventName = `[임시저장] ${eventName}`;
+      }
+
+      // description 처리 (중복 접두사 방지)
+      let eventDescription = currentEventInfo.description || '';
+      if (!eventDescription.startsWith('[PENDING]')) {
+        eventDescription = `[PENDING] ${eventDescription}`;
+      }
+
+      // 임시저장용 요청 본문 (status를 'pending'으로 설정, 입력된 날짜 보존)
+      const requestBody = {
+        name: eventName,
+        domain_code: currentEventInfo.domain_code || null,
+        start_date: currentEventInfo.start_date || null, // 입력된 날짜 보존
+        end_date: currentEventInfo.end_date || null,     // 입력된 날짜 보존
+        background_color: currentEventInfo.background_color || '#000000',
+        description: eventDescription, // description에도 pending 표시
+        content_html: currentEventInfo.content_html || null,
+        coupon_preview_image_url: currentEventInfo.coupon_preview_image_url || null,
+        mission_config: currentMissionData.mission_config || null,
+        event_info_config: currentEventInfo.event_info_config || null,
+        landing_pages: convertPageBuilderToDB(currentLandingPageData),
+        status: 'pending' // 임시저장 상태
+      };
+
+      console.log('🔵 임시저장 요청 본문:', JSON.stringify(requestBody, null, 2));
+      
+      const response = await fetch('/api/events', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      const result = await response.json();
+      console.log('🔵 임시저장 API 응답:', result);
+
+      if (!result.success) {
+        console.error('❌ 임시저장 실패:', result);
+        throw new Error(result.error || '임시저장에 실패했습니다.');
+      }
+
+      console.log('✅ 임시저장 성공! 생성된 이벤트:', result.event);
+      alert('임시저장이 완료되었습니다. 대기 이벤트 목록에서 확인할 수 있습니다.');
+      
+      // 생성 완료와 동일한 방식으로 페이지 이동 (완전 새로고침)
+      window.location.href = '/manage?filter=waiting';
+      
+    } catch (error: any) {
+      console.error('임시저장 오류:', error);
+      alert(error.message || '임시저장 중 오류가 발생했습니다.');
     } finally {
       setIsSubmitting(false);
     }
@@ -340,8 +429,16 @@ export default function CreatePage() {
 
   return (
     <div className="flex flex-col h-screen">
-      <div className="px-6">
+      <div className="px-6 flex items-center justify-between">
         <h2 className="text-2xl font-bold text-gray-900 mt-4 mb-5">이벤트 생성</h2>
+        <button
+          onClick={handleTempSave}
+          disabled={isSubmitting}
+          className="text-sm font-bold mt-4 mb-5 hover:opacity-80 transition-opacity disabled:opacity-50"
+          style={{ color: '#32373D' }}
+        >
+          {isSubmitting ? '저장 중...' : '임시저장'}
+        </button>
       </div>
       <section className="border-t border-x border-b border-gray-200 bg-white px-6 pt-5 pb-0 shadow-sm relative">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
