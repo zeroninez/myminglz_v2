@@ -281,8 +281,46 @@ export default function EditPage() {
 
       // 3. API 호출 (PUT)
       const finalEventInfo = eventInfoDataRef.current; // 업로드 후 최신 데이터 사용
+      
+      // 임시저장 상태에서 완료로 변경될 때 접두사 제거
+      let finalName = finalEventInfo.name || '';
+      let finalDescription = finalEventInfo.description || '';
+      
+      // 이벤트명에서 [임시저장] 접두사 제거
+      if (finalName.startsWith('[임시저장]')) {
+        finalName = finalName.replace(/^\[임시저장\]\s*/, '').trim();
+        // 만약 이름이 비어있으면 기본 이름 설정
+        if (!finalName) {
+          finalName = '이벤트';
+        }
+      }
+      
+      // description에서 [PENDING] 접두사 제거
+      if (finalDescription.startsWith('[PENDING]')) {
+        finalDescription = finalDescription.replace(/^\[PENDING\]\s*/, '').trim();
+      }
+      
+      // 사용처 이름에서도 [임시저장] 접두사 제거
+      let finalEventInfoConfig = finalEventInfo.event_info_config;
+      if (finalEventInfoConfig?.stores && Array.isArray(finalEventInfoConfig.stores)) {
+        finalEventInfoConfig = {
+          ...finalEventInfoConfig,
+          stores: finalEventInfoConfig.stores.map((store: any) => {
+            if (store.name && store.name.startsWith('[임시저장]')) {
+              return {
+                ...store,
+                name: store.name.replace(/^\[임시저장\]\s*/, '').trim() || '사용처'
+              };
+            }
+            return store;
+          })
+        };
+      }
+      
       console.log('🔵 [수정] API 호출 전 최종 eventInfo:', finalEventInfo);
-      console.log('🔵 [수정] stores:', finalEventInfo.event_info_config?.stores);
+      console.log('🔵 [수정] stores:', finalEventInfoConfig?.stores);
+      console.log('🔵 [수정] 정리된 이름:', finalName);
+      console.log('🔵 [수정] 정리된 설명:', finalDescription);
       
       const response = await fetch(`/api/events/${eventId}`, {
         method: 'PUT',
@@ -290,17 +328,18 @@ export default function EditPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          name: finalEventInfo.name,
+          name: finalName,
           domain_code: finalEventInfo.domain_code,
           start_date: finalEventInfo.start_date || null,
           end_date: finalEventInfo.end_date || null,
           background_color: finalEventInfo.background_color || '#000000',
-          description: finalEventInfo.description || null,
+          description: finalDescription || null,
           content_html: finalEventInfo.content_html || null,
           coupon_preview_image_url: finalEventInfo.coupon_preview_image_url || null,
           mission_config: eventMissionDataRef.current.mission_config || null,
-          event_info_config: finalEventInfo.event_info_config || null,
+          event_info_config: finalEventInfoConfig || null,
           landing_pages: landingPagesData,
+          status: 'active', // 완료된 이벤트는 active 상태
         }),
       });
 
@@ -310,9 +349,9 @@ export default function EditPage() {
         throw new Error(result.error || '이벤트 수정에 실패했습니다.');
       }
 
-      // 4. 성공 시 관리 페이지로 이동
+      // 4. 성공 시 관리 페이지로 이동 (완전 새로고침)
       alert('이벤트가 성공적으로 수정되었습니다!');
-      router.push('/manage');
+      window.location.href = '/manage';
     } catch (error: any) {
       console.error('이벤트 수정 오류:', error);
       alert(error.message || '이벤트 수정 중 오류가 발생했습니다.');
