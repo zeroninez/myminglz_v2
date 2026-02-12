@@ -82,14 +82,6 @@ function convertPageContentsToTemplateData(
     data[`${content.field_id}Visible`] = content.is_visible ? 'true' : 'false';
   });
 
-  // 디버깅: containerBackgroundColor 확인
-  console.log('🔍 convertPageContentsToTemplateData:', {
-    contents,
-    backgroundColor,
-    resultData: data,
-    hasContainerBg: data.containerBackgroundColor
-  });
-
   return data;
 }
 
@@ -109,12 +101,6 @@ const templateComponentMap: Record<string, Record<string, React.ComponentType<{ 
   },
   // TODO: 다른 템플릿 추가
 };
-
-// 디버깅: 템플릿 매핑 확인
-console.log('🔍 템플릿 매핑 키들:', Object.keys(templateComponentMap));
-console.log('🔍 본문 1 템플릿:', templateComponentMap['본문 1']);
-console.log('🔍 Content1Type01 컴포넌트:', Content1Type01);
-console.log('🔍 Content1Type02 컴포넌트:', Content1Type02);
 
 export default function EventLandingPage() {
   const params = useParams();

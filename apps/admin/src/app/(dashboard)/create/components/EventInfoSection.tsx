@@ -89,6 +89,9 @@ const EventInfoSection = forwardRef<EventInfoSectionRef, EventInfoSectionProps>(
   // 원본 stores 백업 (isHostSameAsStore 토글 시 복원용)
   const backupStoresRef = useRef<Store[]>([]);
   
+  // 도메인 검증 중복 방지용 ref
+  const domainCodeCheckingRef = useRef<boolean>(false);
+  
   // 사용처 목록
   const [stores, setStores] = useState<Store[]>(() => {
     if (initialData?.event_info_config?.stores && Array.isArray(initialData.event_info_config.stores)) {
@@ -141,8 +144,15 @@ const EventInfoSection = forwardRef<EventInfoSectionRef, EventInfoSectionProps>(
 
   // 도메인 코드 중복 확인 (debounce 적용)
   useEffect(() => {
-    // 수정 모드이거나 도메인 코드가 비어있으면 중복 검사 안 함
-    if (initialData?.domain_code || !domainCode.trim()) {
+    // 빈 도메인 코드면 검사 안 함
+    if (!domainCode.trim()) {
+      setDomainCodeAvailable(null);
+      setDomainCodeMessage(null);
+      return;
+    }
+
+    // 수정 모드에서 기존 도메인 코드와 동일하면 검사 안 함
+    if (isEditMode && initialData?.domain_code && domainCode.trim() === initialData.domain_code) {
       setDomainCodeAvailable(null);
       setDomainCodeMessage(null);
       return;
@@ -151,40 +161,97 @@ const EventInfoSection = forwardRef<EventInfoSectionRef, EventInfoSectionProps>(
     // debounce: 500ms 후에 검사
     const timeoutId = setTimeout(async () => {
       const trimmedCode = domainCode.trim();
+      
+      // Race condition 방지: 현재 입력값과 다르면 중단
+      if (trimmedCode !== domainCode.trim()) {
+        return;
+      }
+      
       if (!trimmedCode) {
         setDomainCodeAvailable(null);
         setDomainCodeMessage(null);
         return;
       }
 
+      // 중복 요청 방지를 위한 ref 사용
+      if (domainCodeCheckingRef.current) {
+        return;
+      }
+
       try {
+        domainCodeCheckingRef.current = true;
         setDomainCodeChecking(true);
         setDomainCodeAvailable(null);
         setDomainCodeMessage(null);
 
-        let response = await fetch(`/api/events/check-domain-code?code=${encodeURIComponent(trimmedCode)}`);
+        // 재시도 로직 (최대 3회)
+        let response;
+        let lastError;
         
-        // 401 에러 시 세션 갱신 후 재시도
-        if (response.status === 401) {
+        for (let attempt = 1; attempt <= 3; attempt++) {
           try {
-            const sessionResponse = await fetch('/api/auth/session', {
-              method: 'GET',
-              credentials: 'include',
+            
+            response = await fetch(`/api/events/check-domain-code?code=${encodeURIComponent(trimmedCode)}`, {
+              headers: {
+                'Cache-Control': 'no-cache',
+              },
             });
             
-            if (sessionResponse.ok) {
-              const sessionResult = await sessionResponse.json();
-              if (sessionResult.success) {
-                // 세션 갱신 성공, 재시도
-                response = await fetch(`/api/events/check-domain-code?code=${encodeURIComponent(trimmedCode)}`);
+            // 401 에러 시 세션 갱신 후 재시도
+            if (response.status === 401) {
+              try {
+                const sessionResponse = await fetch('/api/auth/session', {
+                  method: 'GET',
+                  credentials: 'include',
+                });
+                
+                if (sessionResponse.ok) {
+                  const sessionResult = await sessionResponse.json();
+                  if (sessionResult.success) {
+                    response = await fetch(`/api/events/check-domain-code?code=${encodeURIComponent(trimmedCode)}`, {
+                      headers: {
+                        'Cache-Control': 'no-cache',
+                      },
+                    });
+                  }
+                }
+              } catch (sessionError) {
+                console.error('세션 갱신 실패:', sessionError);
               }
             }
-          } catch (sessionError) {
-            console.error('세션 갱신 실패:', sessionError);
+            
+            // 5xx 에러나 네트워크 에러가 아니면 재시도 중단
+            if (response.status < 500) {
+              break;
+            }
+            
+            lastError = new Error(`HTTP ${response.status}`);
+            
+            // 마지막 시도가 아니면 잠시 대기
+            if (attempt < 3) {
+              await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+            }
+            
+          } catch (networkError) {
+            lastError = networkError;
+            
+            // 마지막 시도가 아니면 잠시 대기
+            if (attempt < 3) {
+              await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+            }
           }
         }
         
+        if (!response) {
+          throw lastError || new Error('모든 재시도 실패');
+        }
+        
         const result = await response.json();
+        
+        // Race condition 재확인: 응답이 왔을 때 입력값이 바뀌었으면 무시
+        if (trimmedCode !== domainCode.trim()) {
+          return;
+        }
 
         if (result.success) {
           setDomainCodeAvailable(result.available);
@@ -195,14 +262,23 @@ const EventInfoSection = forwardRef<EventInfoSectionRef, EventInfoSectionProps>(
         }
       } catch (error: any) {
         console.error('도메인 코드 확인 오류:', error);
+        
+        // Race condition 재확인
+        if (trimmedCode !== domainCode.trim()) {
+          return;
+        }
+        
         setDomainCodeAvailable(false);
-        setDomainCodeMessage('도메인 코드 확인 중 오류가 발생했습니다.');
+        setDomainCodeMessage('도메인 코드 확인 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
       } finally {
+        domainCodeCheckingRef.current = false;
         setDomainCodeChecking(false);
       }
     }, 500);
 
-    return () => clearTimeout(timeoutId);
+    return () => {
+      clearTimeout(timeoutId);
+    };
   }, [domainCode, initialData?.domain_code]);
 
 
@@ -448,6 +524,8 @@ const EventInfoSection = forwardRef<EventInfoSectionRef, EventInfoSectionProps>(
                         value={domainCode}
                         onChange={(e) => {
                           const originalValue = e.target.value;
+                          
+                          
                           // 한글 입력 감지
                           const hasKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(originalValue);
                           const hasInvalidChars = /[^a-zA-Z0-9-]/.test(originalValue);
@@ -463,11 +541,13 @@ const EventInfoSection = forwardRef<EventInfoSectionRef, EventInfoSectionProps>(
                           
                           // 영어, 숫자, 하이픈만 허용 (실시간 필터링)
                           const value = originalValue.replace(/[^a-zA-Z0-9-]/g, '');
+                          
+                          
                           setDomainCode(value);
                           
                           // 입력 시 중복 검사 상태 초기화
-                          // 수정 모드가 아니거나 기존 도메인 코드가 없을 때만 중복 검사
-                          if (!isEditMode || !initialData?.domain_code) {
+                          // 수정 모드에서 기존 도메인 코드와 다르거나, 새 이벤트 생성 시
+                          if (!isEditMode || !initialData?.domain_code || value.trim() !== initialData.domain_code) {
                             setDomainCodeAvailable(null);
                             setDomainCodeMessage(null);
                           }

@@ -81,7 +81,7 @@ export default function HeaderActions({ displayName }: HeaderActionsProps) {
             <button
               onClick={() => {
                 setIsDropdownOpen(false);
-                // 비밀번호 변경 기능은 나중에 구현
+                router.push('/password');
               }}
               className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
             >
@@ -99,7 +99,10 @@ export default function HeaderActions({ displayName }: HeaderActionsProps) {
       </div>
 
       {/* 결제관리 버튼 */}
-      <button className="text-white text-sm font-medium hover:text-gray-200 transition-colors">
+      <button 
+        onClick={() => router.push('/payment')}
+        className="text-white text-sm font-medium hover:text-gray-200 transition-colors"
+      >
         결제관리
       </button>
     </div>
